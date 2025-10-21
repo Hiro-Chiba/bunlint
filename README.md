@@ -31,7 +31,7 @@ echo "GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> .env.local
   - 和文スタイル（、。）と学術スタイル（，．）を双方向に変換。
   - テストは `tests/punctuation.test.ts` を参照。
 - **語尾変換（Gemini API, `lib/gemini.ts`, `app/api/transform/route.ts`）**
-  - Google Gemini API を呼び出し、指定した語尾スタイルへ自動変換。
+  - Google Gemini 1.5 Flash API（`gemini-1.5-flash-latest`）を呼び出し、指定した語尾スタイルへ自動変換。
   - `TextEditor` から API を呼び出し、整形後のテキストを即時反映。
 - **App Router ベースの UI (`app/page.tsx`, `components/*`)**
   - `TextEditor` コンポーネントで入力と統計表示、句読点トグルを統合。

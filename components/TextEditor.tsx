@@ -57,7 +57,8 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
 
   if (
     record.punctuationMode !== "japanese" &&
-    record.punctuationMode !== "academic"
+    record.punctuationMode !== "academic" &&
+    record.punctuationMode !== "western"
   ) {
     return null;
   }
@@ -187,11 +188,13 @@ export function TextEditor() {
     setText(converted);
     setPunctuationMode(mode);
     setDiffSegments(null);
-    setStatusMessage(
-      mode === "academic"
-        ? "句読点を学術スタイル（，．）に変換しました。"
-        : "句読点を和文スタイル（、。）に変換しました。",
-    );
+    const statusMessages: Record<PunctuationMode, string> = {
+      academic: "句読点を学術スタイル（，．）に変換しました。",
+      japanese: "句読点を和文スタイル（、。）に変換しました。",
+      western: "句読点を欧文スタイル（,.）に変換しました。",
+    };
+
+    setStatusMessage(statusMessages[mode]);
   };
 
   const handleInvokeStyleTransform = async () => {

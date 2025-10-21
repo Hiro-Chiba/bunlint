@@ -21,7 +21,7 @@ function isWritingStyle(value: unknown): value is WritingStyle {
 }
 
 function isPunctuationMode(value: unknown): value is PunctuationMode {
-  return value === "japanese" || value === "academic";
+  return value === "japanese" || value === "academic" || value === "western";
 }
 
 export async function POST(request: Request) {

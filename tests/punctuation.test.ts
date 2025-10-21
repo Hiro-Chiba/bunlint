@@ -6,6 +6,7 @@ import {
   detectPunctuationMode,
   toAcademicPunctuation,
   toJapanesePunctuation,
+  toWesternPunctuation,
 } from "../lib/punctuation";
 
 describe("toAcademicPunctuation", () => {
@@ -32,6 +33,21 @@ describe("toJapanesePunctuation", () => {
   });
 });
 
+describe("toWesternPunctuation", () => {
+  test("和文・学術スタイルを半角句読点に変換する", () => {
+    const text = "ここは、和文です。ここは，学術です．";
+    assert.strictEqual(
+      toWesternPunctuation(text),
+      "ここは,和文です.ここは,学術です.",
+    );
+  });
+
+  test("既に半角句読点は変更しない", () => {
+    const text = "Here, we use ASCII punctuation.";
+    assert.strictEqual(toWesternPunctuation(text), text);
+  });
+});
+
 describe("convertPunctuation", () => {
   test("モードに応じて句読点を変換する", () => {
     const text = "今日は、良い天気です。";
@@ -42,6 +58,26 @@ describe("convertPunctuation", () => {
     assert.strictEqual(
       convertPunctuation(text, "japanese"),
       "今日は、良い天気です。",
+    );
+    assert.strictEqual(
+      convertPunctuation(text, "western"),
+      "今日は,良い天気です.",
+    );
+  });
+
+  test("混在した句読点も対象スタイルに変換する", () => {
+    const text = "混在,テスト。別の，例．";
+    assert.strictEqual(
+      convertPunctuation(text, "japanese"),
+      "混在、テスト。別の、例。",
+    );
+    assert.strictEqual(
+      convertPunctuation(text, "academic"),
+      "混在，テスト．別の，例．",
+    );
+    assert.strictEqual(
+      convertPunctuation(text, "western"),
+      "混在,テスト.別の,例.",
     );
   });
 });
@@ -56,6 +92,10 @@ describe("detectPunctuationMode", () => {
       detectPunctuationMode("今日は、良い天気です。"),
       "japanese",
     );
+    assert.strictEqual(
+      detectPunctuationMode("Hello, this is western."),
+      "western",
+    );
   });
 
   test("句読点が存在しない場合はjapaneseを返す", () => {
@@ -65,5 +105,12 @@ describe("detectPunctuationMode", () => {
   test("数が同じ場合は和文スタイルを優先する", () => {
     const text = "ここは，和文。ここは、和文。";
     assert.strictEqual(detectPunctuationMode(text), "japanese");
+  });
+
+  test("3つのスタイルが混在する場合も最多のスタイルを選ぶ", () => {
+    const text = "ここは,欧文。ここは，学術。ここは、和文、";
+    assert.strictEqual(detectPunctuationMode(text), "japanese");
+    const westernDominant = "ここは,欧文.ここは,欧文,終わり。";
+    assert.strictEqual(detectPunctuationMode(westernDominant), "western");
   });
 });

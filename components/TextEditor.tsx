@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   convertPunctuation,
@@ -10,9 +10,12 @@ import {
 import { getTextStats } from "@/lib/text";
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 
-import { HistoryList } from "./HistoryList";
+import { HistoryList, type HistoryEntry } from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
+
+const HISTORY_STORAGE_KEY = "bunlint:history";
+const MAX_HISTORY_ITEMS = 10;
 
 type TransformSuccessResponse = {
   outputText: string;
@@ -35,8 +38,71 @@ export function TextEditor() {
   const [writingStyle, setWritingStyle] = useState<WritingStyle>("desumasu");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   const stats = useMemo(() => getTextStats(text), [text]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setHasLoadedHistory(true);
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      const normalized = parsed
+        .filter((entry): entry is HistoryEntry => {
+          if (!entry || typeof entry !== "object") {
+            return false;
+          }
+
+          const record = entry as Record<string, unknown>;
+          return (
+            typeof record.id === "string" &&
+            typeof record.inputText === "string" &&
+            typeof record.outputText === "string" &&
+            typeof record.style === "string" &&
+            (record.punctuationMode === "japanese" ||
+              record.punctuationMode === "academic") &&
+            typeof record.createdAt === "string"
+          );
+        })
+        .slice(0, MAX_HISTORY_ITEMS);
+
+      if (normalized.length > 0) {
+        setHistoryEntries(normalized);
+      }
+    } catch (error) {
+      console.error("履歴の読み込みに失敗しました", error);
+    } finally {
+      setHasLoadedHistory(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedHistory || typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        HISTORY_STORAGE_KEY,
+        JSON.stringify(historyEntries),
+      );
+    } catch (error) {
+      console.error("履歴の保存に失敗しました", error);
+    }
+  }, [historyEntries, hasLoadedHistory]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -69,6 +135,7 @@ export function TextEditor() {
       return;
     }
 
+    const previousText = text;
     setIsTransforming(true);
     setStatusMessage("Gemini API にリクエストを送信しています...");
 
@@ -120,6 +187,23 @@ export function TextEditor() {
           ? result.message
           : `Gemini API で${preset.label}に整形しました。`;
       setStatusMessage(successMessage);
+
+      const entry: HistoryEntry = {
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `history-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        inputText: previousText,
+        outputText: result.outputText,
+        style: preset.label,
+        punctuationMode: result.punctuationMode,
+        createdAt: new Date().toISOString(),
+      };
+
+      setHistoryEntries((current) => {
+        const next = [entry, ...current];
+        return next.slice(0, MAX_HISTORY_ITEMS);
+      });
     } catch (error) {
       console.error(error);
       setStatusMessage(
@@ -167,7 +251,7 @@ export function TextEditor() {
           isTransforming={isTransforming}
         />
       </div>
-      <HistoryList entries={[]} />
+      <HistoryList entries={historyEntries} isLoading={!hasLoadedHistory} />
     </div>
   );
 }

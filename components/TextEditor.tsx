@@ -83,7 +83,8 @@ export function TextEditor() {
         }),
       });
 
-      let payload: TransformSuccessResponse | TransformErrorResponse | null = null;
+      let payload: TransformSuccessResponse | TransformErrorResponse | null =
+        null;
 
       try {
         payload = (await response.json()) as
@@ -111,10 +112,11 @@ export function TextEditor() {
       setText(result.outputText);
       setPunctuationMode(result.punctuationMode);
 
-      const preset = writingStylePresets[result.writingStyle] ??
+      const preset =
+        writingStylePresets[result.writingStyle] ??
         writingStylePresets[writingStyle];
       const successMessage =
-        (result.message && result.message.trim())
+        result.message && result.message.trim()
           ? result.message
           : `Gemini API で${preset.label}に整形しました。`;
       setStatusMessage(successMessage);

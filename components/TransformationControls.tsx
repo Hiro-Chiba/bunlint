@@ -63,7 +63,8 @@ export function TransformationControls({
       <div>
         <h3 className="text-sm font-semibold text-slate-700">語尾スタイル</h3>
         <p className="mt-1 text-xs text-slate-500" id={helperId}>
-          Gemini API を利用して語尾やトーンを整えます。スタイルによって文章全体の印象が変わります。
+          Gemini API
+          を利用して語尾やトーンを整えます。スタイルによって文章全体の印象が変わります。
         </p>
         <label className="mt-3 block" htmlFor={selectId}>
           <span className="text-xs font-medium text-slate-500">スタイル</span>
@@ -86,9 +87,11 @@ export function TransformationControls({
           </select>
         </label>
         <ul className="mt-2 space-y-1 text-xs text-slate-500">
-          {(Object.entries(writingStylePresets) as Array<
-            [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
-          >).map(([value, preset]) => (
+          {(
+            Object.entries(writingStylePresets) as Array<
+              [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
+            >
+          ).map(([value, preset]) => (
             <li key={value}>
               <span className="font-medium text-slate-600">{preset.label}</span>
               ：{preset.description}

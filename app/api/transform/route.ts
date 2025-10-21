@@ -31,7 +31,10 @@ export async function POST(request: Request) {
     body = (await request.json()) as TransformRequestBody;
   } catch {
     return NextResponse.json(
-      { error: "リクエストボディの解析に失敗しました。JSON 形式で送信してください。" },
+      {
+        error:
+          "リクエストボディの解析に失敗しました。JSON 形式で送信してください。",
+      },
       { status: 400 },
     );
   }
@@ -91,7 +94,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof GeminiError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
 
     console.error("Gemini transform failed", error);

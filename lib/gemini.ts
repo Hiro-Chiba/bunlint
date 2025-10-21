@@ -47,7 +47,10 @@ const GEMINI_API_URL =
 export class GeminiError extends Error {
   status: number;
 
-  constructor(message: string, options: { cause?: unknown; status?: number } = {}) {
+  constructor(
+    message: string,
+    options: { cause?: unknown; status?: number } = {},
+  ) {
     super(message, { cause: options.cause });
     this.name = "GeminiError";
     this.status = options.status ?? 500;
@@ -104,14 +107,18 @@ export async function transformTextWithGemini({
 }: GeminiTransformRequest): Promise<GeminiTransformResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new GeminiError("GEMINI_API_KEY が設定されていません。", { status: 500 });
+    throw new GeminiError("GEMINI_API_KEY が設定されていません。", {
+      status: 500,
+    });
   }
 
   const payload = {
     contents: [
       {
         role: "user",
-        parts: [{ text: buildPrompt({ inputText, writingStyle, punctuationMode }) }],
+        parts: [
+          { text: buildPrompt({ inputText, writingStyle, punctuationMode }) },
+        ],
       },
     ],
     generationConfig: {

@@ -13,6 +13,12 @@ bun run lint  # Next.js ESLint を実行
 
 Tailwind CSS の設定ファイルは `tailwind.config.ts` に配置しており、`app/globals.css` でベーススタイルを読み込んでいます。
 
+`.env.local` に Gemini API キーを設定すると語尾変換機能が利用可能になります。
+
+```bash
+echo "GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> .env.local
+```
+
 ## 実装済みの主な機能
 
 - **テキスト統計 (`lib/text.ts`)**
@@ -21,6 +27,9 @@ Tailwind CSS の設定ファイルは `tailwind.config.ts` に配置しており
 - **句読点変換 (`lib/punctuation.ts`)**
   - 和文スタイル（、。）と学術スタイル（，．）を双方向に変換。
   - テストは `tests/punctuation.test.ts` を参照。
+- **語尾変換（Gemini API, `lib/gemini.ts`, `app/api/transform/route.ts`）**
+  - Google Gemini API を呼び出し、指定した語尾スタイルへ自動変換。
+  - `TextEditor` から API を呼び出し、整形後のテキストを即時反映。
 - **App Router ベースの UI (`app/page.tsx`, `components/*`)**
   - `TextEditor` コンポーネントで入力と統計表示、句読点トグルを統合。
   - `TransformationControls` や `StatsPanel` を分離し、将来の Gemini 連携に備えた設計。
@@ -28,7 +37,6 @@ Tailwind CSS の設定ファイルは `tailwind.config.ts` に配置しており
 
 ## 今後の拡張
 
-- Gemini API を呼び出すサーバーアクション / API ルートの実装。
 - Neon (PostgreSQL) との接続および履歴 CRUD の実装。
 - UI の細かなアクセシビリティ改善やトースト表示の導入。
 - `plans.md` のチェックリストに沿った残タスクの消化。

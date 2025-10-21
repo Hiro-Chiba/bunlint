@@ -8,13 +8,22 @@ import {
   type PunctuationMode,
 } from "@/lib/punctuation";
 import { getTextStats } from "@/lib/text";
+import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 
 import { HistoryList } from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
-import {
-  TransformationControls,
-  type WritingStyle,
-} from "./TransformationControls";
+import { TransformationControls } from "./TransformationControls";
+
+type TransformSuccessResponse = {
+  outputText: string;
+  writingStyle: WritingStyle;
+  punctuationMode: PunctuationMode;
+  message?: string;
+};
+
+type TransformErrorResponse = {
+  error: string;
+};
 
 export function TextEditor() {
   const [text, setText] = useState(
@@ -25,6 +34,7 @@ export function TextEditor() {
   );
   const [writingStyle, setWritingStyle] = useState<WritingStyle>("desumasu");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isTransforming, setIsTransforming] = useState(false);
 
   const stats = useMemo(() => getTextStats(text), [text]);
 
@@ -49,10 +59,75 @@ export function TextEditor() {
     );
   };
 
-  const handleInvokeStyleTransform = () => {
-    setStatusMessage(
-      "Gemini API との連携は準備中です。後日のアップデートで語尾変換が利用可能になります。",
-    );
+  const handleInvokeStyleTransform = async () => {
+    if (isTransforming) {
+      return;
+    }
+
+    if (!text.trim()) {
+      setStatusMessage("語尾変換を行うテキストを入力してください。");
+      return;
+    }
+
+    setIsTransforming(true);
+    setStatusMessage("Gemini API にリクエストを送信しています...");
+
+    try {
+      const response = await fetch("/api/transform", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputText: text,
+          writingStyle,
+          punctuationMode,
+        }),
+      });
+
+      let payload: TransformSuccessResponse | TransformErrorResponse | null =
+        null;
+
+      try {
+        payload = (await response.json()) as
+          | TransformSuccessResponse
+          | TransformErrorResponse;
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          payload && "error" in payload && payload.error
+            ? payload.error
+            : "語尾変換に失敗しました。時間をおいて再度お試しください。";
+        setStatusMessage(errorMessage);
+        return;
+      }
+
+      if (!payload || !("outputText" in payload)) {
+        setStatusMessage("Gemini API から結果を取得できませんでした。");
+        return;
+      }
+
+      const result = payload;
+      setText(result.outputText);
+      setPunctuationMode(result.punctuationMode);
+
+      const preset =
+        writingStylePresets[result.writingStyle] ??
+        writingStylePresets[writingStyle];
+      const successMessage =
+        result.message && result.message.trim()
+          ? result.message
+          : `Gemini API で${preset.label}に整形しました。`;
+      setStatusMessage(successMessage);
+    } catch (error) {
+      console.error(error);
+      setStatusMessage(
+        "ネットワークエラーが発生しました。通信環境をご確認のうえ、もう一度お試しください。",
+      );
+    } finally {
+      setIsTransforming(false);
+    }
   };
 
   return (
@@ -89,6 +164,7 @@ export function TextEditor() {
           writingStyle={writingStyle}
           onWritingStyleChange={setWritingStyle}
           onInvokeStyleTransform={handleInvokeStyleTransform}
+          isTransforming={isTransforming}
         />
       </div>
       <HistoryList entries={[]} />

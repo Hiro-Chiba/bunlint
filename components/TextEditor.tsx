@@ -19,8 +19,21 @@ import { HistoryList, type HistoryEntry } from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
 
-const HISTORY_STORAGE_KEY = "bunlint:history";
+const USER_ID_STORAGE_KEY = "bunlint:user-id";
+const HISTORY_STORAGE_KEY_PREFIX = "bunlint:history:user:";
+const LEGACY_HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const generateIdentifier = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const createHistoryStorageKey = (userId: string) =>
+  `${HISTORY_STORAGE_KEY_PREFIX}${userId}`;
 
 const isWritingStyle = (value: unknown): value is WritingStyle =>
   typeof value === "string" &&
@@ -114,6 +127,8 @@ export function TextEditor() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isUserInitialized, setIsUserInitialized] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
 
@@ -127,18 +142,83 @@ export function TextEditor() {
 
   useEffect(() => {
     if (typeof window === "undefined") {
+      setIsUserInitialized(true);
+      return;
+    }
+
+    let resolvedId: string | null = null;
+
+    try {
+      const storedId = window.localStorage.getItem(USER_ID_STORAGE_KEY);
+      if (isNonEmptyString(storedId)) {
+        resolvedId = storedId;
+      }
+    } catch (error) {
+      console.error("ユーザー識別子の読み込みに失敗しました", error);
+    }
+
+    if (!resolvedId) {
+      resolvedId = generateIdentifier();
+
+      try {
+        window.localStorage.setItem(USER_ID_STORAGE_KEY, resolvedId);
+      } catch (error) {
+        console.error("ユーザー識別子の保存に失敗しました", error);
+      }
+    }
+
+    setUserId(resolvedId);
+    setIsUserInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isUserInitialized) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
       setHasLoadedHistory(true);
       return;
     }
 
+    if (!isNonEmptyString(userId)) {
+      setHistoryEntries([]);
+      setHasLoadedHistory(true);
+      return;
+    }
+
+    const storageKey = createHistoryStorageKey(userId);
+
     try {
-      const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      let stored = window.localStorage.getItem(storageKey);
+
       if (!stored) {
+        const legacyStored = window.localStorage.getItem(
+          LEGACY_HISTORY_STORAGE_KEY,
+        );
+        if (legacyStored) {
+          stored = legacyStored;
+          try {
+            window.localStorage.setItem(storageKey, legacyStored);
+            window.localStorage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
+          } catch (error) {
+            console.error(
+              "履歴のユーザー別領域への移行に失敗しました",
+              error,
+            );
+          }
+        }
+      }
+
+      if (!stored) {
+        setHistoryEntries([]);
         return;
       }
 
       const parsed: unknown = JSON.parse(stored);
       if (!Array.isArray(parsed)) {
+        window.localStorage.removeItem(storageKey);
+        setHistoryEntries([]);
         return;
       }
 
@@ -149,30 +229,34 @@ export function TextEditor() {
 
       if (normalized.length > 0) {
         setHistoryEntries(normalized);
-      } else if (stored) {
-        window.localStorage.removeItem(HISTORY_STORAGE_KEY);
+      } else {
+        window.localStorage.removeItem(storageKey);
       }
     } catch (error) {
       console.error("履歴の読み込みに失敗しました", error);
     } finally {
       setHasLoadedHistory(true);
     }
-  }, []);
+  }, [isUserInitialized, userId]);
 
   useEffect(() => {
-    if (!hasLoadedHistory || typeof window === "undefined") {
+    if (
+      !hasLoadedHistory ||
+      typeof window === "undefined" ||
+      !isNonEmptyString(userId)
+    ) {
       return;
     }
 
     try {
       window.localStorage.setItem(
-        HISTORY_STORAGE_KEY,
+        createHistoryStorageKey(userId),
         JSON.stringify(historyEntries),
       );
     } catch (error) {
       console.error("履歴の保存に失敗しました", error);
     }
-  }, [historyEntries, hasLoadedHistory]);
+  }, [historyEntries, hasLoadedHistory, userId]);
 
   const handleTextChange = (value: string) => {
     setText(value);

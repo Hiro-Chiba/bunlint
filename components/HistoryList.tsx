@@ -17,6 +17,12 @@ type HistoryListProps = {
 };
 
 export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
+  const punctuationModeLabels: Record<PunctuationMode, string> = {
+    academic: "学術",
+    japanese: "和文",
+    western: "欧文",
+  };
+
   if (isLoading) {
     return (
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -55,8 +61,7 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
                 <span>
-                  {writingStyleLabel} /{" "}
-                  {entry.punctuationMode === "academic" ? "学術" : "和文"}
+                  {writingStyleLabel} / {punctuationModeLabels[entry.punctuationMode]}
                 </span>
               </div>
               <p className="mt-2 max-h-24 overflow-hidden text-sm text-slate-600">

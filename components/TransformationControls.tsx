@@ -18,6 +18,7 @@ type TransformationControlsProps = {
 const punctuationModeLabels: Record<PunctuationMode, string> = {
   japanese: "和文（、。）",
   academic: "学術（，．）",
+  western: "欧文（,.）",
 };
 
 export function TransformationControls({

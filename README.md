@@ -22,16 +22,23 @@ Tailwind CSS の設定ファイルは `tailwind.config.ts` に配置しており
 echo "GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> .env.local
 ```
 
+Gemini モデルや API バージョンを切り替える必要がある場合は、以下の環境変数で上書きできます（未設定時は `gemini-2.0-flash-lite` と `v1beta` → `v1` の順に自動フォールバックします）。
+
+```bash
+echo "GEMINI_MODEL=gemini-2.0-flash" >> .env.local         # 任意のモデル名
+echo "GEMINI_API_VERSION=v1" >> .env.local                 # 複数指定する場合はカンマ区切り
+```
+
 ## 実装済みの主な機能
 
 - **テキスト統計 (`lib/text.ts`)**
   - 文字数（結合文字含む）・単語数・文数を算出。
   - テストは `tests/text.test.ts` にてカバレッジを確保。
 - **句読点変換 (`lib/punctuation.ts`)**
-  - 和文スタイル（、。）と学術スタイル（，．）を双方向に変換。
+  - 和文スタイル（、。）、学術スタイル（，．）、欧文スタイル（,.）を相互に変換。
   - テストは `tests/punctuation.test.ts` を参照。
 - **語尾変換（Gemini API, `lib/gemini.ts`, `app/api/transform/route.ts`）**
-  - Google Gemini 1.5 Flash API（`gemini-1.5-flash-latest`）を呼び出し、指定した語尾スタイルへ自動変換。
+  - Google Gemini 2.0 Flash-Lite API（`gemini-2.0-flash-lite`）を呼び出し、指定した語尾スタイルへ自動変換。
   - `TextEditor` から API を呼び出し、整形後のテキストを即時反映。
 - **App Router ベースの UI (`app/page.tsx`, `components/*`)**
   - `TextEditor` コンポーネントで入力と統計表示、句読点トグルを統合。

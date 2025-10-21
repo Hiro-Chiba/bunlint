@@ -41,9 +41,8 @@ export type GeminiTransformResult = {
   rawResponse?: unknown;
 };
 
-const GEMINI_MODEL = "gemini-1.5-flash-latest";
-const GEMINI_API_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite";
+const DEFAULT_API_VERSIONS = ["v1beta", "v1"] as const;
 
 export class GeminiError extends Error {
   status: number;
@@ -58,16 +57,140 @@ export class GeminiError extends Error {
   }
 }
 
+function normalizeModelName(model: string): string {
+  return model.trim().replace(/^models\//, "").replace(/\s+/g, "-");
+}
+
+function resolveGeminiModel(): string {
+  const envModel = process.env.GEMINI_MODEL;
+
+  if (typeof envModel === "string" && envModel.trim().length > 0) {
+    return normalizeModelName(envModel);
+  }
+
+  return DEFAULT_GEMINI_MODEL;
+}
+
+function resolveGeminiApiVersions(): string[] {
+  const envVersions = process.env.GEMINI_API_VERSION;
+
+  if (typeof envVersions === "string" && envVersions.trim().length > 0) {
+    const versions = envVersions
+      .split(",")
+      .map((version) => version.trim())
+      .filter((version) => version.length > 0);
+
+    if (versions.length > 0) {
+      return versions;
+    }
+  }
+
+  return [...DEFAULT_API_VERSIONS];
+}
+
+function shouldRetryWithNextVersion(error: GeminiError): boolean {
+  if (error.status === 404) {
+    return true;
+  }
+
+  if (error.status === 400 && /not found for api version/i.test(error.message)) {
+    return true;
+  }
+
+  return false;
+}
+
+async function requestGeminiApi({
+  apiKey,
+  model,
+  version,
+  payload,
+  punctuationMode,
+}: {
+  apiKey: string;
+  model: string;
+  version: string;
+  payload: unknown;
+  punctuationMode: PunctuationMode;
+}): Promise<GeminiTransformResult> {
+  const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent`;
+
+  const response = await fetch(`${url}?key=${apiKey}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseBody = await response.text();
+
+  if (!response.ok) {
+    let errorMessage = `Gemini API の呼び出しに失敗しました (status: ${response.status})`;
+    let parsedBody: unknown = null;
+
+    if (responseBody) {
+      try {
+        parsedBody = JSON.parse(responseBody);
+        if (typeof (parsedBody as any)?.error?.message === "string") {
+          errorMessage = (parsedBody as any).error.message;
+        }
+      } catch {
+        // ignore JSON parse errors for the error body
+      }
+    }
+
+    throw new GeminiError(`${errorMessage} (model: ${model}, version: ${version})`, {
+      status: response.status,
+      cause: parsedBody,
+    });
+  }
+
+  let data: any = null;
+  if (responseBody) {
+    try {
+      data = JSON.parse(responseBody);
+    } catch (error) {
+      throw new GeminiError("Gemini API のレスポンス解析に失敗しました。", {
+        status: 502,
+        cause: error,
+      });
+    }
+  }
+
+  const outputText = extractTextFromResponse(data);
+
+  if (!outputText) {
+    throw new GeminiError("Gemini API から有効な文章を取得できませんでした。", {
+      status: 502,
+    });
+  }
+
+  return {
+    outputText: convertPunctuation(outputText, punctuationMode),
+    rawResponse: data,
+  };
+}
+
 function buildPrompt({
   inputText,
   writingStyle,
   punctuationMode,
 }: GeminiTransformRequest): string {
   const preset = writingStylePresets[writingStyle];
-  const punctuationInstruction =
-    punctuationMode === "academic"
-      ? "句読点は必ず「，」「．」を使用してください。"
-      : "句読点は必ず「、」「。」を使用してください。";
+  let punctuationInstruction: string;
+
+  switch (punctuationMode) {
+    case "academic":
+      punctuationInstruction = "句読点は必ず「，」「．」を使用してください。";
+      break;
+    case "western":
+      punctuationInstruction = "句読点は必ず半角の「,」「.」を使用してください。";
+      break;
+    default:
+      punctuationInstruction = "句読点は必ず「、」「。」を使用してください。";
+      break;
+  }
 
   return `あなたは日本語文章の編集アシスタントです。以下の指示に従ってテキストを整形してください。
 
@@ -113,6 +236,9 @@ export async function transformTextWithGemini({
     });
   }
 
+  const model = resolveGeminiModel();
+  const apiVersions = resolveGeminiApiVersions();
+
   const payload = {
     contents: [
       {
@@ -127,39 +253,32 @@ export async function transformTextWithGemini({
     },
   };
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const errors: GeminiError[] = [];
 
-  if (!response.ok) {
-    let errorMessage = `Gemini API の呼び出しに失敗しました (status: ${response.status})`;
+  for (const version of apiVersions) {
     try {
-      const errorBody = await response.json();
-      if (typeof errorBody?.error?.message === "string") {
-        errorMessage = errorBody.error.message;
+      return await requestGeminiApi({
+        apiKey,
+        model,
+        version,
+        payload,
+        punctuationMode,
+      });
+    } catch (error) {
+      if (error instanceof GeminiError) {
+        errors.push(error);
+        if (shouldRetryWithNextVersion(error)) {
+          continue;
+        }
       }
-    } catch {
-      // ignore JSON parse errors
+
+      throw error;
     }
-
-    throw new GeminiError(errorMessage, { status: response.status });
   }
 
-  const data = await response.json();
-  const outputText = extractTextFromResponse(data);
-
-  if (!outputText) {
-    throw new GeminiError("Gemini API から有効な文章を取得できませんでした。", {
-      status: 502,
-    });
+  if (errors.length > 0) {
+    throw errors[errors.length - 1];
   }
 
-  return {
-    outputText: convertPunctuation(outputText, punctuationMode),
-    rawResponse: data,
-  };
+  throw new GeminiError("Gemini API の呼び出しに失敗しました。", { status: 500 });
 }

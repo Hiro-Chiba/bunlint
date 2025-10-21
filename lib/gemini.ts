@@ -41,8 +41,9 @@ export type GeminiTransformResult = {
   rawResponse?: unknown;
 };
 
+const GEMINI_MODEL = "gemini-1.5-flash-latest";
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export class GeminiError extends Error {
   status: number;

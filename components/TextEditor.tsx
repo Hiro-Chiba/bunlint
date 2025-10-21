@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   convertPunctuation,
@@ -10,9 +10,81 @@ import {
 import { getTextStats } from "@/lib/text";
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 
-import { HistoryList } from "./HistoryList";
+import { HistoryList, type HistoryEntry } from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
+
+const HISTORY_STORAGE_KEY = "bunlint:history";
+const MAX_HISTORY_ITEMS = 10;
+
+const isWritingStyle = (value: unknown): value is WritingStyle =>
+  typeof value === "string" &&
+  Object.prototype.hasOwnProperty.call(writingStylePresets, value);
+
+const resolveWritingStyleFromLabel = (label: unknown): WritingStyle | null => {
+  if (typeof label !== "string" || !label) {
+    return null;
+  }
+
+  for (const [value, preset] of Object.entries(writingStylePresets) as Array<
+    [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
+  >) {
+    if (preset.label === label) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.id !== "string" ||
+    typeof record.inputText !== "string" ||
+    typeof record.outputText !== "string" ||
+    typeof record.createdAt !== "string"
+  ) {
+    return null;
+  }
+
+  if (
+    record.punctuationMode !== "japanese" &&
+    record.punctuationMode !== "academic"
+  ) {
+    return null;
+  }
+
+  let writingStyle: WritingStyle | null = null;
+  if (isWritingStyle(record.writingStyle)) {
+    writingStyle = record.writingStyle;
+  } else {
+    writingStyle = resolveWritingStyleFromLabel(record.style);
+  }
+
+  if (!writingStyle) {
+    return null;
+  }
+
+  const writingStyleLabel =
+    typeof record.writingStyleLabel === "string" && record.writingStyleLabel
+      ? record.writingStyleLabel
+      : writingStylePresets[writingStyle]?.label;
+
+  return {
+    id: record.id,
+    inputText: record.inputText,
+    outputText: record.outputText,
+    writingStyle,
+    writingStyleLabel,
+    punctuationMode: record.punctuationMode,
+    createdAt: record.createdAt,
+  };
+};
 
 type TransformSuccessResponse = {
   outputText: string;
@@ -35,8 +107,59 @@ export function TextEditor() {
   const [writingStyle, setWritingStyle] = useState<WritingStyle>("desumasu");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   const stats = useMemo(() => getTextStats(text), [text]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setHasLoadedHistory(true);
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      const normalized = parsed
+        .map((entry) => normalizeHistoryEntry(entry))
+        .filter((entry): entry is HistoryEntry => entry !== null)
+        .slice(0, MAX_HISTORY_ITEMS);
+
+      if (normalized.length > 0) {
+        setHistoryEntries(normalized);
+      } else if (stored) {
+        window.localStorage.removeItem(HISTORY_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error("履歴の読み込みに失敗しました", error);
+    } finally {
+      setHasLoadedHistory(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedHistory || typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        HISTORY_STORAGE_KEY,
+        JSON.stringify(historyEntries),
+      );
+    } catch (error) {
+      console.error("履歴の保存に失敗しました", error);
+    }
+  }, [historyEntries, hasLoadedHistory]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -69,6 +192,7 @@ export function TextEditor() {
       return;
     }
 
+    const previousText = text;
     setIsTransforming(true);
     setStatusMessage("Gemini API にリクエストを送信しています...");
 
@@ -115,11 +239,30 @@ export function TextEditor() {
       const preset =
         writingStylePresets[result.writingStyle] ??
         writingStylePresets[writingStyle];
+      const writingStyleLabel = preset?.label ?? result.writingStyle;
       const successMessage =
         result.message && result.message.trim()
           ? result.message
-          : `Gemini API で${preset.label}に整形しました。`;
+          : `Gemini API で${writingStyleLabel}に整形しました。`;
       setStatusMessage(successMessage);
+
+      const entry: HistoryEntry = {
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `history-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        inputText: previousText,
+        outputText: result.outputText,
+        writingStyle: result.writingStyle,
+        writingStyleLabel,
+        punctuationMode: result.punctuationMode,
+        createdAt: new Date().toISOString(),
+      };
+
+      setHistoryEntries((current) => {
+        const next = [entry, ...current];
+        return next.slice(0, MAX_HISTORY_ITEMS);
+      });
     } catch (error) {
       console.error(error);
       setStatusMessage(
@@ -167,7 +310,7 @@ export function TextEditor() {
           isTransforming={isTransforming}
         />
       </div>
-      <HistoryList entries={[]} />
+      <HistoryList entries={historyEntries} isLoading={!hasLoadedHistory} />
     </div>
   );
 }

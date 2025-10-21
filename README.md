@@ -33,7 +33,7 @@ echo "GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> .env.local
 - **App Router ベースの UI (`app/page.tsx`, `components/*`)**
   - `TextEditor` コンポーネントで入力と統計表示、句読点トグルを統合。
   - `TransformationControls` や `StatsPanel` を分離し、将来の Gemini 連携に備えた設計。
-  - `HistoryList` コンポーネントを用意し、Neon からのデータ表示を受け入れる準備を整備。
+  - `HistoryList` ではブラウザーの `localStorage` に直近10件の変換履歴を保存し、再読み込み後も参照できます。
 
 ## 今後の拡張
 

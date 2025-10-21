@@ -33,7 +33,11 @@ const tokenize = (input: string): string[] => {
   return tokens;
 };
 
-const pushSegment = (segments: DiffSegment[], type: DiffSegmentType, value: string) => {
+const pushSegment = (
+  segments: DiffSegment[],
+  type: DiffSegmentType,
+  value: string,
+) => {
   if (!value) {
     return;
   }

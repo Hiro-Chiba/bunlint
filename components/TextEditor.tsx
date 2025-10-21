@@ -314,7 +314,9 @@ export function TextEditor() {
           {diffSegments && (
             <section className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <h3 className="font-semibold text-slate-700">Gemini差分プレビュー</h3>
+                <h3 className="font-semibold text-slate-700">
+                  Gemini差分プレビュー
+                </h3>
                 <span>追加: 緑 / 削除: 赤</span>
               </div>
               <p className="text-xs text-slate-500">

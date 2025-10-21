@@ -37,13 +37,10 @@ describe("diffWords", () => {
   });
 
   test("改行を含む差分でも追加部分を保持する", () => {
-    assert.deepStrictEqual(
-      diffWords("行1\n行2", "行1\n新しい行\n行2"),
-      [
-        { type: "unchanged", value: "行1\n" },
-        { type: "added", value: "新しい行\n" },
-        { type: "unchanged", value: "行2" },
-      ],
-    );
+    assert.deepStrictEqual(diffWords("行1\n行2", "行1\n新しい行\n行2"), [
+      { type: "unchanged", value: "行1\n" },
+      { type: "added", value: "新しい行\n" },
+      { type: "unchanged", value: "行2" },
+    ]);
   });
 });

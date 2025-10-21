@@ -10,24 +10,40 @@ const notoSans = Noto_Sans_JP({
   display: "swap",
 });
 
-const siteTitle = "bunlint（ブンリント） | テキスト変換スタジオ";
+const siteTitle = "【仮】bunlint（ブンリント） | 日本語テキスト整形スタジオ";
 const siteDescription =
-  "Gemini API と句読点変換で文章の語尾やスタイルを手早く整えられる日本語向けエディタです。";
+  "公開準備中の bunlint（ブンリント）は、句読点スタイルの統一と Gemini API を活用した語尾調整で文章をすばやく整えられる日本語向けエディタです。";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://bunlint.example.com"),
+  applicationName: "bunlint（仮）",
   title: siteTitle,
   description: siteDescription,
-  keywords: ["テキスト変換", "Gemini API", "句読点変換", "語尾調整"],
+  keywords: [
+    "テキスト変換",
+    "Gemini API",
+    "句読点変換",
+    "語尾調整",
+    "日本語エディタ",
+  ],
   openGraph: {
     title: siteTitle,
     description: siteDescription,
     type: "website",
     locale: "ja_JP",
+    siteName: "bunlint（仮）",
   },
   twitter: {
     card: "summary",
     title: siteTitle,
     description: siteDescription,
+  },
+  robots: {
+    index: false,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 

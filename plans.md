@@ -23,10 +23,10 @@
 
 - ディレクトリ：`app/`を利用。以下のページ・コンポーネントを想定。
   - `app/page.tsx`：メインエディタページ。
-  - `components/TextEditor.tsx`：入力と結果表示を統合したコンポーネント。
-  - `components/StatsPanel.tsx`：文字数/単語数/文章数などの統計情報表示。
-  - `components/TransformationControls.tsx`：句読点変換や語尾調整のトグル・セレクト。
-  - `components/HistoryList.tsx`：Neonから取得した履歴の表示。
+  - `components/TextEditor.tsx`：入力と結果表示を統合したコンポーネント（実装済み）。
+  - `components/StatsPanel.tsx`：文字数/単語数/文章数などの統計情報表示（実装済み）。
+  - `components/TransformationControls.tsx`：句読点変換や語尾調整のトグル・セレクト（UIのみ実装済み）。
+  - `components/HistoryList.tsx`：Neonから取得した履歴の表示（UIのみ実装済み）。
   - `lib/gemini.ts`：Gemini APIクライアント。
   - `lib/db.ts`：Neon (PostgreSQL) 接続ロジック。
   - `app/api/transform/route.ts`：語尾変換APIルート。
@@ -67,16 +67,16 @@
 
 ## 5. 実装ステップ
 
-1. Next.jsプロジェクト作成と基本設定
+1. Next.jsプロジェクト作成と基本設定（完了）
    - `npx create-next-app@latest`で初期化。
    - TypeScript, ESLint, Tailwindを有効化。
    - Vercelデプロイ設定確認。
-2. UIレイアウトと状態管理
+2. UIレイアウトと状態管理（初期版完了）
    - `TextEditor`コンポーネントを実装し、`useState`で入力管理。
    - `StatsPanel`と`TransformationControls`を配置。
 3. 文字数カウント・句読点変換ロジック
-   - 文字数/単語数計算のユーティリティ作成（`lib/text.ts`）。
-   - 句読点変換ロジックを`lib/punctuation.ts`に分離し、ユニットテストを作成。
+   - 文字数/単語数計算のユーティリティ作成（`lib/text.ts`、実装済み）。
+   - 句読点変換ロジックを`lib/punctuation.ts`に分離し、ユニットテストを作成（実装済み）。
 4. Gemini API連携
    - `lib/gemini.ts`にAPIクライアント実装。
    - `app/api/transform/route.ts`でPOSTリクエストに応答。
@@ -100,9 +100,9 @@
 
 ## 7. 実装進捗チェックリスト
 
-- [ ] Next.jsプロジェクトの初期化と基本設定
-- [ ] 文字数・単語数カウント機能の実装
-- [ ] 句読点変換トグルの実装
+- [x] Next.jsプロジェクトの初期化と基本設定
+- [x] 文字数・単語数カウント機能の実装
+- [x] 句読点変換トグルの実装
 - [ ] Gemini APIによる語尾変換機能の実装
 - [ ] Neonを用いた履歴管理機能の実装
 - [ ] シンプルなUI構成とUX最適化の完了

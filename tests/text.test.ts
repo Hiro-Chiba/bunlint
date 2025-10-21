@@ -1,65 +1,66 @@
-import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 
 import {
   countCharacters,
   countSentences,
   countWords,
   getTextStats,
-} from "../src/lib/text";
+} from "../lib/text";
 
 describe("countCharacters", () => {
   test("結合文字を1文字として数える", () => {
-    expect(countCharacters("👍🏼")).toBe(1);
+    assert.strictEqual(countCharacters("👍🏼"), 1);
   });
 
   test("空白を除外できる", () => {
     const text = "テスト  データ";
-    expect(countCharacters(text, { excludeWhitespace: true })).toBe(6);
+    assert.strictEqual(countCharacters(text, { excludeWhitespace: true }), 6);
   });
 });
 
 describe("countWords", () => {
   test("空白で区切られた単語数を返す", () => {
     const text = "This  is\n  a\ttest";
-    expect(countWords(text)).toBe(4);
+    assert.strictEqual(countWords(text), 4);
   });
 
   test("テキストが空の場合は0を返す", () => {
-    expect(countWords("   ")).toBe(0);
+    assert.strictEqual(countWords("   "), 0);
   });
 });
 
 describe("countSentences", () => {
   test("終端記号で区切られた文を数える", () => {
     const text = "今日は晴れです。明日も晴れるでしょう! 楽しみですね?";
-    expect(countSentences(text)).toBe(3);
+    assert.strictEqual(countSentences(text), 3);
   });
 
   test("末尾に句読点がなくても文として数える", () => {
     const text = "今日は晴れです。明日も晴れるでしょう でも傘は持っていく";
-    expect(countSentences(text)).toBe(2);
+    assert.strictEqual(countSentences(text), 2);
   });
 
   test("空白だけの文は無視する", () => {
     const text = "今日は晴れです!     ?";
-    expect(countSentences(text)).toBe(1);
+    assert.strictEqual(countSentences(text), 1);
   });
 
   test("改行を挟んだ文も数える", () => {
     const text = "こんにちは。\nよろしくお願いします？";
-    expect(countSentences(text)).toBe(2);
+    assert.strictEqual(countSentences(text), 2);
   });
 
   test("連続する終端記号をまとめて扱う", () => {
     const text = "本当にすごい!?信じられない…。";
-    expect(countSentences(text)).toBe(2);
+    assert.strictEqual(countSentences(text), 2);
   });
 });
 
 describe("getTextStats", () => {
   test("文字数・単語数・文数をまとめて返す", () => {
     const text = "テストです。This is a test.";
-    expect(getTextStats(text)).toEqual({
+    assert.deepStrictEqual(getTextStats(text), {
       characters: countCharacters(text),
       words: countWords(text),
       sentences: countSentences(text),

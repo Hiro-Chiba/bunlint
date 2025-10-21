@@ -5,7 +5,7 @@ import {
   countSentences,
   countWords,
   getTextStats,
-} from "../src/lib/text";
+} from "../lib/text";
 
 describe("countCharacters", () => {
   test("結合文字を1文字として数える", () => {

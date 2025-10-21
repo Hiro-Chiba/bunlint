@@ -5,7 +5,7 @@ import {
   detectPunctuationMode,
   toAcademicPunctuation,
   toJapanesePunctuation,
-} from "../src/lib/punctuation";
+} from "../lib/punctuation";
 
 describe("toAcademicPunctuation", () => {
   test("和文向け句読点を学術スタイルに変換する", () => {

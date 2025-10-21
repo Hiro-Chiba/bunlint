@@ -28,6 +28,16 @@ describe("countWords", () => {
   test("テキストが空の場合は0を返す", () => {
     assert.strictEqual(countWords("   "), 0);
   });
+
+  test("日本語の文章からも概算の単語数を求める", () => {
+    const text = "単語数が少ない問題を修正してください";
+    assert.strictEqual(countWords(text), 11);
+  });
+
+  test("句読点や改行が混在していても単語数を求める", () => {
+    const text = "This is a test.\nNew-line text, please!";
+    assert.strictEqual(countWords(text), 8);
+  });
 });
 
 describe("countSentences", () => {

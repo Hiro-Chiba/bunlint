@@ -1,6 +1,6 @@
 import { convertPunctuation, type PunctuationMode } from "./punctuation";
 
-export type WritingStyle = "dearu" | "desumasu" | "casual";
+export type WritingStyle = "dearu" | "desumasu";
 
 export type StylePreset = {
   label: string;
@@ -35,12 +35,6 @@ export const writingStylePresets: Record<WritingStyle, StylePreset> = {
       "文体は常に『です・ます調』に統一し、終止形は「です」「ます」で終わるようにしてください。",
     strictToneInstruction:
       "常体（だ・である 等）の語尾が残らないように確認し、すべての文末を「です」「ます」などの丁寧語で終わらせてください。",
-  },
-  casual: {
-    label: "カジュアル",
-    description: "親しみやすいフランクな言い回しに整形します。",
-    toneInstruction:
-      "くだけた口語表現を使い、友人に話すような親しみやすい文体にしてください。ただし過度に砕けた表現やスラングは避けてください。",
   },
 };
 

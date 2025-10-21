@@ -8,12 +8,11 @@ export default function HomePage() {
           bunlint
         </p>
         <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-          テキスト変換・語尾調整スタジオ
+          テキスト変換・語尾調整・字数カウントエディタ
         </h1>
         <p className="max-w-3xl text-base text-slate-600">
           文章の句読点スタイルや語尾のトーンを整え、統計情報をチェックできるエディタです。
-          AIを用いた語尾変換と句読点変換に対応しており、ブラウザーの localStorage に最新10件の変換履歴を保持してすぐに呼び出せ
-          ます。
+          AIを用いた語尾変換と句読点変換に対応しています。
         </p>
       </header>
       <TextEditor />

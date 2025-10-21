@@ -29,7 +29,8 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
       <section className="rounded-lg border border-dashed border-slate-200 bg-slate-100/60 p-4 text-sm text-slate-500">
         <h3 className="text-sm font-semibold text-slate-600">変換履歴</h3>
         <p className="mt-2">
-          まだ変換履歴がありません。Gemini API と連携後、ここに最新の結果が表示されます。
+          まだ変換履歴がありません。Gemini API
+          と連携後、ここに最新の結果が表示されます。
         </p>
       </section>
     );
@@ -44,7 +45,8 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
               <span>
-                {entry.style} / {entry.punctuationMode === "academic" ? "学術" : "和文"}
+                {entry.style} /{" "}
+                {entry.punctuationMode === "academic" ? "学術" : "和文"}
               </span>
             </div>
             <p className="mt-2 max-h-24 overflow-hidden text-sm text-slate-600">

@@ -17,9 +17,11 @@ import {
 } from "./TransformationControls";
 
 export function TextEditor() {
-  const [text, setText] = useState("これはサンプルテキストです。自由に編集して機能をお試しください。");
-  const [punctuationMode, setPunctuationMode] = useState<PunctuationMode>(
-    () => detectPunctuationMode(text),
+  const [text, setText] = useState(
+    "これはサンプルテキストです。自由に編集して機能をお試しください。",
+  );
+  const [punctuationMode, setPunctuationMode] = useState<PunctuationMode>(() =>
+    detectPunctuationMode(text),
   );
   const [writingStyle, setWritingStyle] = useState<WritingStyle>("desumasu");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -58,7 +60,9 @@ export function TextEditor() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <header className="space-y-1">
-            <h2 className="text-lg font-semibold text-slate-800">テキストエディタ</h2>
+            <h2 className="text-lg font-semibold text-slate-800">
+              テキストエディタ
+            </h2>
             <p className="text-sm text-slate-500">
               テキストを入力すると、文字数や文数がリアルタイムに更新されます。
             </p>

@@ -84,9 +84,12 @@ export function TransformationControls({
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-slate-700">語尾スタイル（準備中）</h3>
+        <h3 className="text-sm font-semibold text-slate-700">
+          語尾スタイル（準備中）
+        </h3>
         <p className="mt-1 text-xs text-slate-500" id={helperId}>
-          Gemini API を利用した語尾変換は今後実装予定です。スタイル選択のみ先行で設定できます。
+          Gemini API
+          を利用した語尾変換は今後実装予定です。スタイル選択のみ先行で設定できます。
         </p>
         <label className="mt-3 block" htmlFor={selectId}>
           <span className="text-xs font-medium text-slate-500">スタイル</span>
@@ -109,9 +112,7 @@ export function TransformationControls({
         <ul className="mt-2 space-y-1 text-xs text-slate-500">
           {writingStyleOptions.map((option) => (
             <li key={option.value}>
-              <span className="font-medium text-slate-600">
-                {option.label}
-              </span>
+              <span className="font-medium text-slate-600">{option.label}</span>
               ：{option.description}
             </li>
           ))}

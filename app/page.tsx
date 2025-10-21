@@ -12,7 +12,8 @@ export default function HomePage() {
         </h1>
         <p className="max-w-3xl text-base text-slate-600">
           文章の句読点スタイルや語尾のトーンを整え、統計情報をチェックできるエディタです。
-          現在は句読点変換と文字数カウントに対応しており、Gemini API と Neon の連携は今後追加予定です。
+          現在は句読点変換と文字数カウントに対応しており、Gemini API と Neon
+          の連携は今後追加予定です。
         </p>
       </header>
       <TextEditor />

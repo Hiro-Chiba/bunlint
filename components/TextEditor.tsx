@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import clsx from "clsx";
 
@@ -113,6 +113,12 @@ export function TextEditor() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
+
+  const editorTitleId = useId();
+  const editorDescriptionId = useId();
+  const statusMessageId = useId();
+  const diffTitleId = useId();
+  const diffDescriptionId = useId();
 
   const stats = useMemo(() => getTextStats(text), [text]);
 
@@ -285,15 +291,22 @@ export function TextEditor() {
     }
   };
 
+  const textareaDescribedBy = statusMessage
+    ? `${editorDescriptionId} ${statusMessageId}`
+    : editorDescriptionId;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <header className="space-y-1">
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2
+              id={editorTitleId}
+              className="text-lg font-semibold text-slate-800"
+            >
               テキストエディタ
             </h2>
-            <p className="text-sm text-slate-500">
+            <p id={editorDescriptionId} className="text-sm text-slate-500">
               テキストを入力すると、文字数や文数がリアルタイムに更新されます。
             </p>
           </header>
@@ -302,24 +315,31 @@ export function TextEditor() {
             value={text}
             onChange={(event) => handleTextChange(event.target.value)}
             placeholder="ここに文章を入力してください"
+            aria-labelledby={editorTitleId}
+            aria-describedby={textareaDescribedBy}
           />
           {statusMessage && (
             <div
               role="status"
+              id={statusMessageId}
               className="rounded-md border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"
             >
               {statusMessage}
             </div>
           )}
           {diffSegments && (
-            <section className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <section
+              className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3"
+              aria-labelledby={diffTitleId}
+              aria-describedby={diffDescriptionId}
+            >
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <h3 className="font-semibold text-slate-700">
+                <h3 id={diffTitleId} className="font-semibold text-slate-700">
                   Gemini差分プレビュー
                 </h3>
                 <span>追加: 緑 / 削除: 赤</span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p id={diffDescriptionId} className="text-xs text-slate-500">
                 Gemini API による変更箇所を背景色でハイライト表示しています。
               </p>
               <div className="max-h-48 overflow-auto rounded border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">

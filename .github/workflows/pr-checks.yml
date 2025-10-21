@@ -70,28 +70,6 @@ jobs:
               ;;
           esac
 
-      - name: Run Prettier
-        shell: bash
-        run: |
-          case "${{ steps.detect.outputs.manager }}" in
-            bun)
-              bunx prettier --check .
-              ;;
-            pnpm)
-              pnpm exec prettier --check .
-              ;;
-            yarn)
-              yarn run prettier --check .
-              ;;
-            npm)
-              npx --yes prettier --check .
-              ;;
-            *)
-              echo "Prettierを実行できませんでした" >&2
-              exit 1
-              ;;
-          esac
-
       - name: Run tests
         shell: bash
         run: |

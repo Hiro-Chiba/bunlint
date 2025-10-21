@@ -1,14 +1,7 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Noto_Sans_JP } from "next/font/google";
 import type { ReactNode } from "react";
-
-const notoSans = Noto_Sans_JP({
-  subsets: ["latin"],
-  variable: "--font-noto-sans",
-  display: "swap",
-});
 
 const siteTitle = "【仮】bunlint（ブンリント） | 日本語テキスト整形スタジオ";
 const siteDescription =
@@ -49,7 +42,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ja" className={notoSans.variable}>
+    <html lang="ja">
       <body className="min-h-screen bg-slate-50 font-sans text-slate-900">
         {children}
       </body>

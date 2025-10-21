@@ -1,3 +1,4 @@
+import defaultTheme from "tailwindcss/defaultTheme";
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -9,6 +10,19 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          "\"Noto Sans JP\"",
+          "\"Hiragino Sans\"",
+          "\"Hiragino Kaku Gothic ProN\"",
+          "\"Hiragino Kaku Gothic Pro\"",
+          "\"Yu Gothic\"",
+          "\"Yu Gothic UI\"",
+          "\"YuGothic\"",
+          "\"Meiryo\"",
+          ...defaultTheme.fontFamily.sans,
+        ],
+      },
       colors: {
         brand: {
           50: "#f0f9ff",

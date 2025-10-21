@@ -41,15 +41,12 @@ describe("convertPunctuation", () => {
 
 describe("detectPunctuationMode", () => {
   test("句読点の多数派を返す", () => {
-    expect(detectPunctuationMode("今日は，良い天気です．"))
-      .toBe("academic");
-    expect(detectPunctuationMode("今日は、良い天気です。"))
-      .toBe("japanese");
+    expect(detectPunctuationMode("今日は，良い天気です．")).toBe("academic");
+    expect(detectPunctuationMode("今日は、良い天気です。")).toBe("japanese");
   });
 
   test("句読点が存在しない場合はjapaneseを返す", () => {
-    expect(detectPunctuationMode("今日は良い天気です"))
-      .toBe("japanese");
+    expect(detectPunctuationMode("今日は良い天気です")).toBe("japanese");
   });
 
   test("数が同じ場合は和文スタイルを優先する", () => {

@@ -9,8 +9,7 @@ import {
 
 describe("countCharacters", () => {
   test("結合文字を1文字として数える", () => {
-    expect(countCharacters("👍🏼"))
-      .toBe(1);
+    expect(countCharacters("👍🏼")).toBe(1);
   });
 
   test("空白を除外できる", () => {

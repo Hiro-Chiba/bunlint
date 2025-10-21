@@ -1,13 +1,13 @@
 const SENTENCE_DELIMITERS = ["。", "．", ".", "!", "?", "！", "？"] as const;
 
 const escapedDelimiterClass = SENTENCE_DELIMITERS.map((char) =>
-  char.replace(/[\\^$*+?.()|[\]{}-]/g, "\\$&")
+  char.replace(/[\\^$*+?.()|[\]{}-]/g, "\\$&"),
 ).join("");
 
 const delimiterRegex = new RegExp(`[${escapedDelimiterClass}]`, "gu");
 const sentencePattern = new RegExp(
   `[^${escapedDelimiterClass}]+(?:[${escapedDelimiterClass}]+|$)`,
-  "gu"
+  "gu",
 );
 
 const graphemeSegmenter =
@@ -20,7 +20,10 @@ function splitGraphemes(text: string): string[] {
     return Array.from(text);
   }
 
-  return Array.from(graphemeSegmenter.segment(text), (segment) => segment.segment);
+  return Array.from(
+    graphemeSegmenter.segment(text),
+    (segment) => segment.segment,
+  );
 }
 
 export type TextStats = {
@@ -42,7 +45,7 @@ export type CharacterCountOptions = {
  */
 export function countCharacters(
   text: string,
-  options: CharacterCountOptions = {}
+  options: CharacterCountOptions = {},
 ): number {
   const { excludeWhitespace = false } = options;
   const characters = splitGraphemes(text);
@@ -91,7 +94,7 @@ export function countSentences(text: string): number {
  */
 export function getTextStats(
   text: string,
-  options: CharacterCountOptions = {}
+  options: CharacterCountOptions = {},
 ): TextStats {
   return {
     characters: countCharacters(text, options),

@@ -35,7 +35,7 @@ export function toJapanesePunctuation(text: string): string {
  */
 export function convertPunctuation(
   text: string,
-  mode: PunctuationMode
+  mode: PunctuationMode,
 ): string {
   if (mode === "academic") {
     return toAcademicPunctuation(text);

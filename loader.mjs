@@ -88,15 +88,25 @@ export async function load(url, context, defaultLoad) {
     const source = await readFile(fileURLToPath(url), "utf8");
 
     const ts = await loadTypeScript();
+    const tsModule =
+      ts && typeof ts.transpileModule === "function"
+        ? ts
+        : ts?.default && typeof ts.default.transpileModule === "function"
+          ? ts.default
+          : null;
 
-    const { outputText } = ts.transpileModule(source, {
+    if (!tsModule) {
+      throw new Error("TypeScript のトランスパイル機能を読み込めませんでした");
+    }
+
+    const { outputText } = tsModule.transpileModule(source, {
       compilerOptions: {
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        jsx: ts.JsxEmit.Preserve,
-        target: ts.ScriptTarget.ES2022,
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        jsx: "preserve",
+        target: "ES2022",
         esModuleInterop: true,
-        importsNotUsedAsValues: ts.ImportsNotUsedAsValues.Preserve,
+        importsNotUsedAsValues: "preserve",
       },
       fileName: fileURLToPath(url),
     });

@@ -36,11 +36,25 @@ describe("diffWords", () => {
     );
   });
 
+  test("日本語の細かな差分を文字単位で検出する", () => {
+    assert.deepStrictEqual(
+      diffWords("これはテストです。", "これはテストでした。"),
+      [
+        { type: "unchanged", value: "これはテストで" },
+        { type: "removed", value: "す" },
+        { type: "added", value: "した" },
+        { type: "unchanged", value: "。" },
+      ],
+    );
+  });
+
   test("改行を含む差分でも追加部分を保持する", () => {
     assert.deepStrictEqual(diffWords("行1\n行2", "行1\n新しい行\n行2"), [
       { type: "unchanged", value: "行1\n" },
-      { type: "added", value: "新しい行\n" },
-      { type: "unchanged", value: "行2" },
+      { type: "added", value: "新しい" },
+      { type: "unchanged", value: "行" },
+      { type: "added", value: "\n行" },
+      { type: "unchanged", value: "2" },
     ]);
   });
 });

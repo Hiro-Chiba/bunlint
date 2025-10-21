@@ -34,6 +34,12 @@ const westernMap: Record<string, string> = {
   "．": ".",
 };
 
+const punctuationMaps: Record<PunctuationMode, Record<string, string>> = {
+  academic: academicMap,
+  japanese: japaneseMap,
+  western: westernMap,
+};
+
 const punctuationGroups: Record<PunctuationMode, Set<string>> = {
   academic: new Set(["，", "．"]),
   japanese: new Set(["、", "。"]),
@@ -62,39 +68,11 @@ function replaceWithMap(text: string, map: Record<string, string>): string {
 }
 
 /**
- * 和文向けの句読点（、。）を学術論文などで用いられるスタイル（，．）に変換する。
- */
-export function toAcademicPunctuation(text: string): string {
-  return replaceWithMap(text, academicMap);
-}
-
-/**
- * 学術論文スタイルの句読点（，．）を和文向けの句読点（、。）に変換する。
- */
-export function toJapanesePunctuation(text: string): string {
-  return replaceWithMap(text, japaneseMap);
-}
-
-/**
- * 欧文向けの句読点（,.）に変換する。
- */
-export function toWesternPunctuation(text: string): string {
-  return replaceWithMap(text, westernMap);
-}
-
-/**
  * 指定した句読点スタイルにテキストを揃える。
  */
 export function convertPunctuation(text: string, mode: PunctuationMode): string {
-  if (mode === "academic") {
-    return toAcademicPunctuation(text);
-  }
-
-  if (mode === "western") {
-    return toWesternPunctuation(text);
-  }
-
-  return toJapanesePunctuation(text);
+  const map = punctuationMaps[mode] ?? japaneseMap;
+  return replaceWithMap(text, map);
 }
 
 /**

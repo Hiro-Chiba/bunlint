@@ -5,52 +5,10 @@ import {
   convertPunctuation,
   detectPunctuationMode,
   replacePunctuationCharacter,
-  toAcademicPunctuation,
-  toJapanesePunctuation,
-  toWesternPunctuation,
 } from "../lib/punctuation";
 
-describe("toAcademicPunctuation", () => {
-  test("和文向け句読点を学術スタイルに変換する", () => {
-    const text = "今日は、良い天気です。";
-    assert.strictEqual(toAcademicPunctuation(text), "今日は，良い天気です．");
-  });
-
-  test("既に学術スタイルの句読点は変更しない", () => {
-    const text = "今日は，良い天気です．";
-    assert.strictEqual(toAcademicPunctuation(text), text);
-  });
-});
-
-describe("toJapanesePunctuation", () => {
-  test("学術スタイルを和文向けに変換する", () => {
-    const text = "今日は，良い天気です．";
-    assert.strictEqual(toJapanesePunctuation(text), "今日は、良い天気です。");
-  });
-
-  test("既に和文スタイルの句読点は変更しない", () => {
-    const text = "今日は、良い天気です。";
-    assert.strictEqual(toJapanesePunctuation(text), text);
-  });
-});
-
-describe("toWesternPunctuation", () => {
-  test("和文・学術スタイルを半角句読点に変換する", () => {
-    const text = "ここは、和文です。ここは，学術です．";
-    assert.strictEqual(
-      toWesternPunctuation(text),
-      "ここは,和文です.ここは,学術です.",
-    );
-  });
-
-  test("既に半角句読点は変更しない", () => {
-    const text = "Here, we use ASCII punctuation.";
-    assert.strictEqual(toWesternPunctuation(text), text);
-  });
-});
-
 describe("convertPunctuation", () => {
-  test("モードに応じて句読点を変換する", () => {
+  test("和文スタイルを指定モードに変換する", () => {
     const text = "今日は、良い天気です。";
     assert.strictEqual(
       convertPunctuation(text, "academic"),
@@ -64,6 +22,28 @@ describe("convertPunctuation", () => {
       convertPunctuation(text, "western"),
       "今日は,良い天気です.",
     );
+  });
+
+  test("学術スタイルを和文・欧文スタイルに変換する", () => {
+    const text = "今日は，良い天気です．";
+    assert.strictEqual(
+      convertPunctuation(text, "japanese"),
+      "今日は、良い天気です。",
+    );
+    assert.strictEqual(
+      convertPunctuation(text, "western"),
+      "今日は,良い天気です.",
+    );
+  });
+
+  test("既に対象スタイルの句読点は変更しない", () => {
+    const academic = "今日は，良い天気です．";
+    const japanese = "今日は、良い天気です。";
+    const western = "Here, we use ASCII punctuation.";
+
+    assert.strictEqual(convertPunctuation(academic, "academic"), academic);
+    assert.strictEqual(convertPunctuation(japanese, "japanese"), japanese);
+    assert.strictEqual(convertPunctuation(western, "western"), western);
   });
 
   test("混在した句読点も対象スタイルに変換する", () => {

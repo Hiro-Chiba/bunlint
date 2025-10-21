@@ -1,0 +1,115 @@
+name: PR Checks
+
+on:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Detect package manager
+        id: detect
+        shell: bash
+        run: |
+          if [ -f bun.lockb ]; then
+            echo "manager=bun" >> "$GITHUB_OUTPUT"
+          elif [ -f pnpm-lock.yaml ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f yarn.lock ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+          elif [ -f package-lock.json ]; then
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          elif [ -f package.json ]; then
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          else
+            echo "依存関係をインストールするためのパッケージマネージャーが見つかりませんでした" >&2
+            exit 1
+          fi
+
+      - name: Set up Bun
+        if: steps.detect.outputs.manager == 'bun'
+        uses: oven-sh/setup-bun@v1
+
+      - name: Enable Corepack
+        if: steps.detect.outputs.manager == 'pnpm' || steps.detect.outputs.manager == 'yarn'
+        run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          case "${{ steps.detect.outputs.manager }}" in
+            bun)
+              bun install
+              ;;
+            pnpm)
+              pnpm install --frozen-lockfile
+              ;;
+            yarn)
+              yarn install --frozen-lockfile
+              ;;
+            npm)
+              if [ -f package-lock.json ]; then
+                npm ci
+              else
+                npm install
+              fi
+              ;;
+            *)
+              echo "未対応のパッケージマネージャーです" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Run Prettier
+        shell: bash
+        run: |
+          case "${{ steps.detect.outputs.manager }}" in
+            bun)
+              bunx prettier --check .
+              ;;
+            pnpm)
+              pnpm exec prettier --check .
+              ;;
+            yarn)
+              yarn run prettier --check .
+              ;;
+            npm)
+              npx --yes prettier --check .
+              ;;
+            *)
+              echo "Prettierを実行できませんでした" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Run tests
+        shell: bash
+        run: |
+          case "${{ steps.detect.outputs.manager }}" in
+            bun)
+              bun test
+              ;;
+            pnpm)
+              pnpm test
+              ;;
+            yarn)
+              yarn test
+              ;;
+            npm)
+              npm test
+              ;;
+            *)
+              echo "テストを実行できませんでした" >&2
+              exit 1
+              ;;
+          esac

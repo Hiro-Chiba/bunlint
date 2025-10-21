@@ -13,8 +13,7 @@ export default function HomePage() {
         <p className="max-w-3xl text-base text-slate-600">
           文章の句読点スタイルや語尾のトーンを整え、統計情報をチェックできるエディタです。
           Gemini API を用いた語尾変換と句読点変換に対応しており、ブラウザーの
-          localStorage に最新10件の変換履歴を保持します。Neon
-          によるサーバーサイド履歴管理は今後追加予定です。
+          localStorage に最新10件の変換履歴を保持してすぐに呼び出せます。
         </p>
       </header>
       <TextEditor />

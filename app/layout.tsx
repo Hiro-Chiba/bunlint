@@ -10,10 +10,25 @@ const notoSans = Noto_Sans_JP({
   display: "swap",
 });
 
+const siteTitle = "bunlint（ブンリント） | テキスト変換スタジオ";
+const siteDescription =
+  "Gemini API と句読点変換で文章の語尾やスタイルを手早く整えられる日本語向けエディタです。";
+
 export const metadata: Metadata = {
-  title: "bunlint | テキスト変換スタジオ",
-  description:
-    "文字数カウント・句読点変換・語尾スタイル調整を支援するNext.jsアプリケーションです。",
+  title: siteTitle,
+  description: siteDescription,
+  keywords: ["テキスト変換", "Gemini API", "句読点変換", "語尾調整"],
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    type: "website",
+    locale: "ja_JP",
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -21,9 +21,7 @@ const isWritingStyle = (value: unknown): value is WritingStyle =>
   typeof value === "string" &&
   Object.prototype.hasOwnProperty.call(writingStylePresets, value);
 
-const resolveWritingStyleFromLabel = (
-  label: unknown,
-): WritingStyle | null => {
+const resolveWritingStyleFromLabel = (label: unknown): WritingStyle | null => {
   if (typeof label !== "string" || !label) {
     return null;
   }

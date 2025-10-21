@@ -48,7 +48,10 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
             entry.writingStyleLabel ?? preset?.label ?? entry.writingStyle;
 
           return (
-            <li key={entry.id} className="rounded-md border border-slate-200 p-3">
+            <li
+              key={entry.id}
+              className="rounded-md border border-slate-200 p-3"
+            >
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
                 <span>

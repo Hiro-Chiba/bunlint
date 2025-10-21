@@ -15,6 +15,11 @@ const graphemeSegmenter =
     ? new Intl.Segmenter("ja", { granularity: "grapheme" })
     : null;
 
+const wordSegmenter =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter("ja", { granularity: "word" })
+    : null;
+
 function splitGraphemes(text: string): string[] {
   if (!graphemeSegmenter) {
     return Array.from(text);
@@ -24,6 +29,36 @@ function splitGraphemes(text: string): string[] {
     graphemeSegmenter.segment(text),
     (segment) => segment.segment,
   );
+}
+
+function splitWords(text: string): string[] {
+  if (wordSegmenter) {
+    const segments = wordSegmenter.segment(text);
+    const words: string[] = [];
+
+    for (const segment of segments) {
+      if (!segment.isWordLike) {
+        continue;
+      }
+
+      const normalized = segment.segment.trim();
+      if (normalized.length === 0) {
+        continue;
+      }
+
+      words.push(normalized);
+    }
+
+    if (words.length > 0) {
+      return words;
+    }
+  }
+
+  return (
+    text.match(
+      /\p{Script=Han}|\p{Script=Hiragana}+|\p{Script=Katakana}+|[\p{Letter}\p{Number}\p{Mark}'’_-]+/gu,
+    ) ?? []
+  ).filter((word) => word.trim().length > 0);
 }
 
 export type TextStats = {
@@ -57,15 +92,21 @@ export function countCharacters(
 }
 
 /**
- * 単語数をカウントする。空白文字で区切ったトークン数として算出する。
+ * 単語数をカウントする。Intl.Segmenterが利用可能な場合は単語境界を推定し、
+ * それ以外の環境では空白や句読点で区切ったトークン数を用いる。
  */
 export function countWords(text: string): number {
-  const trimmed = text.trim();
-  if (!trimmed) {
+  const normalized = text.replace(/\s+/gu, " ").trim();
+  if (!normalized) {
     return 0;
   }
 
-  const tokens = trimmed.match(/\S+/gu);
+  const words = splitWords(normalized);
+  if (words.length > 0) {
+    return words.length;
+  }
+
+  const tokens = normalized.match(/\S+/gu);
   return tokens ? tokens.length : 0;
 }
 

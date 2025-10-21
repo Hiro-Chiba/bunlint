@@ -5,7 +5,10 @@ export type DiffSegment = {
   value: string;
 };
 
-const whitespacePattern = /\s+/g;
+const whitespaceRegex = /\s/;
+const japaneseCharRegex =
+  /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
+const asciiWordRegex = /[A-Za-z0-9]/;
 
 const tokenize = (input: string): string[] => {
   if (!input) {
@@ -13,22 +16,38 @@ const tokenize = (input: string): string[] => {
   }
 
   const tokens: string[] = [];
-  let lastIndex = 0;
+  let asciiBuffer = "";
 
-  for (const match of input.matchAll(whitespacePattern)) {
-    const index = match.index ?? 0;
+  const flushAsciiBuffer = () => {
+    if (asciiBuffer) {
+      tokens.push(asciiBuffer);
+      asciiBuffer = "";
+    }
+  };
 
-    if (index > lastIndex) {
-      tokens.push(input.slice(lastIndex, index));
+  for (const char of Array.from(input)) {
+    if (whitespaceRegex.test(char)) {
+      flushAsciiBuffer();
+      tokens.push(char);
+      continue;
     }
 
-    tokens.push(match[0]);
-    lastIndex = index + match[0].length;
+    if (japaneseCharRegex.test(char)) {
+      flushAsciiBuffer();
+      tokens.push(char);
+      continue;
+    }
+
+    if (asciiWordRegex.test(char)) {
+      asciiBuffer += char;
+      continue;
+    }
+
+    flushAsciiBuffer();
+    tokens.push(char);
   }
 
-  if (lastIndex < input.length) {
-    tokens.push(input.slice(lastIndex));
-  }
+  flushAsciiBuffer();
 
   return tokens;
 };

@@ -17,6 +17,77 @@ import { TransformationControls } from "./TransformationControls";
 const HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
 
+const isWritingStyle = (value: unknown): value is WritingStyle =>
+  typeof value === "string" &&
+  Object.prototype.hasOwnProperty.call(writingStylePresets, value);
+
+const resolveWritingStyleFromLabel = (
+  label: unknown,
+): WritingStyle | null => {
+  if (typeof label !== "string" || !label) {
+    return null;
+  }
+
+  for (const [value, preset] of Object.entries(writingStylePresets) as Array<
+    [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
+  >) {
+    if (preset.label === label) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.id !== "string" ||
+    typeof record.inputText !== "string" ||
+    typeof record.outputText !== "string" ||
+    typeof record.createdAt !== "string"
+  ) {
+    return null;
+  }
+
+  if (
+    record.punctuationMode !== "japanese" &&
+    record.punctuationMode !== "academic"
+  ) {
+    return null;
+  }
+
+  let writingStyle: WritingStyle | null = null;
+  if (isWritingStyle(record.writingStyle)) {
+    writingStyle = record.writingStyle;
+  } else {
+    writingStyle = resolveWritingStyleFromLabel(record.style);
+  }
+
+  if (!writingStyle) {
+    return null;
+  }
+
+  const writingStyleLabel =
+    typeof record.writingStyleLabel === "string" && record.writingStyleLabel
+      ? record.writingStyleLabel
+      : writingStylePresets[writingStyle]?.label;
+
+  return {
+    id: record.id,
+    inputText: record.inputText,
+    outputText: record.outputText,
+    writingStyle,
+    writingStyleLabel,
+    punctuationMode: record.punctuationMode,
+    createdAt: record.createdAt,
+  };
+};
+
 type TransformSuccessResponse = {
   outputText: string;
   writingStyle: WritingStyle;
@@ -61,26 +132,14 @@ export function TextEditor() {
       }
 
       const normalized = parsed
-        .filter((entry): entry is HistoryEntry => {
-          if (!entry || typeof entry !== "object") {
-            return false;
-          }
-
-          const record = entry as Record<string, unknown>;
-          return (
-            typeof record.id === "string" &&
-            typeof record.inputText === "string" &&
-            typeof record.outputText === "string" &&
-            typeof record.style === "string" &&
-            (record.punctuationMode === "japanese" ||
-              record.punctuationMode === "academic") &&
-            typeof record.createdAt === "string"
-          );
-        })
+        .map((entry) => normalizeHistoryEntry(entry))
+        .filter((entry): entry is HistoryEntry => entry !== null)
         .slice(0, MAX_HISTORY_ITEMS);
 
       if (normalized.length > 0) {
         setHistoryEntries(normalized);
+      } else if (stored) {
+        window.localStorage.removeItem(HISTORY_STORAGE_KEY);
       }
     } catch (error) {
       console.error("履歴の読み込みに失敗しました", error);
@@ -182,10 +241,11 @@ export function TextEditor() {
       const preset =
         writingStylePresets[result.writingStyle] ??
         writingStylePresets[writingStyle];
+      const writingStyleLabel = preset?.label ?? result.writingStyle;
       const successMessage =
         result.message && result.message.trim()
           ? result.message
-          : `Gemini API で${preset.label}に整形しました。`;
+          : `Gemini API で${writingStyleLabel}に整形しました。`;
       setStatusMessage(successMessage);
 
       const entry: HistoryEntry = {
@@ -195,7 +255,8 @@ export function TextEditor() {
             : `history-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         inputText: previousText,
         outputText: result.outputText,
-        style: preset.label,
+        writingStyle: result.writingStyle,
+        writingStyleLabel,
         punctuationMode: result.punctuationMode,
         createdAt: new Date().toISOString(),
       };

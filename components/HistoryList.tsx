@@ -1,10 +1,12 @@
+import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 export type HistoryEntry = {
   id: string;
   inputText: string;
   outputText: string;
-  style: string;
+  writingStyle: WritingStyle;
+  writingStyleLabel?: string;
   punctuationMode: PunctuationMode;
   createdAt: string;
 };
@@ -30,7 +32,7 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
         <h3 className="text-sm font-semibold text-slate-600">変換履歴</h3>
         <p className="mt-2">
           まだ変換履歴がありません。Gemini API
-          と連携後、ここに最新の結果が表示されます。
+          で語尾変換を実行すると、ここに最新10件の結果が保存されます。
         </p>
       </section>
     );
@@ -40,20 +42,26 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
     <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h3 className="text-sm font-semibold text-slate-700">変換履歴</h3>
       <ul className="space-y-3">
-        {entries.map((entry) => (
-          <li key={entry.id} className="rounded-md border border-slate-200 p-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
-              <span>
-                {entry.style} /{" "}
-                {entry.punctuationMode === "academic" ? "学術" : "和文"}
-              </span>
-            </div>
-            <p className="mt-2 max-h-24 overflow-hidden text-sm text-slate-600">
-              {entry.outputText || entry.inputText}
-            </p>
-          </li>
-        ))}
+        {entries.map((entry) => {
+          const preset = writingStylePresets[entry.writingStyle];
+          const writingStyleLabel =
+            entry.writingStyleLabel ?? preset?.label ?? entry.writingStyle;
+
+          return (
+            <li key={entry.id} className="rounded-md border border-slate-200 p-3">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
+                <span>
+                  {writingStyleLabel} /{" "}
+                  {entry.punctuationMode === "academic" ? "学術" : "和文"}
+                </span>
+              </div>
+              <p className="mt-2 max-h-24 overflow-hidden text-sm text-slate-600">
+                {entry.outputText || entry.inputText}
+              </p>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

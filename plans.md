@@ -25,8 +25,8 @@
   - `app/page.tsx`：メインエディタページ。
   - `components/TextEditor.tsx`：入力と結果表示を統合したコンポーネント（実装済み）。
   - `components/StatsPanel.tsx`：文字数/単語数/文章数などの統計情報表示（実装済み）。
-  - `components/TransformationControls.tsx`：句読点変換や語尾調整のトグル・セレクト（UIのみ実装済み）。
-  - `components/HistoryList.tsx`：Neonから取得した履歴の表示（UIのみ実装済み）。
+  - `components/TransformationControls.tsx`：句読点変換や語尾調整のトグル・セレクト（Gemini API 呼び出しまで実装済み）。
+  - `components/HistoryList.tsx`：最新の変換履歴を表示（ブラウザーの localStorage で暫定保存済み、Neon 連携は今後対応）。
   - `lib/gemini.ts`：Gemini APIクライアント。
   - `lib/db.ts`：Neon (PostgreSQL) 接続ロジック。
   - `app/api/transform/route.ts`：語尾変換APIルート。
@@ -64,6 +64,7 @@
   - `created_at` (timestamp with time zone, default now)
 - ユーザー操作ごとに履歴を保存し、最新10件程度を画面に表示。
 - 将来的なユーザー認証を考慮し、`user_id`カラムを追加できるようスキーマを設計。
+- ブラウザーでは `localStorage` を用いた最新10件の暫定保存機構を実装済み。Neon 連携時に置き換える。
 
 ## 5. 実装ステップ
 
@@ -104,9 +105,11 @@
 - [x] 文字数・単語数カウント機能の実装
 - [x] 句読点変換トグルの実装
 - [x] Gemini APIによる語尾変換機能の実装
+- [x] ブラウザーでの暫定的な履歴保存（localStorage）
 - [ ] Neonを用いた履歴管理機能の実装
 - [ ] シンプルなUI構成とUX最適化の完了
-- [ ] 単体テスト・E2Eテストの整備
+- [x] 主要ユーティリティの単体テスト整備
+- [ ] E2Eテストの整備
 - [ ] Vercelへのデプロイと環境変数設定の確認
 - [ ] 運用監視とエラーログ収集体制の確立
 

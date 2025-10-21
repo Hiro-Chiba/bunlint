@@ -35,15 +35,27 @@ describe("toJapanesePunctuation", () => {
 describe("convertPunctuation", () => {
   test("モードに応じて句読点を変換する", () => {
     const text = "今日は、良い天気です。";
-    assert.strictEqual(convertPunctuation(text, "academic"), "今日は，良い天気です．");
-    assert.strictEqual(convertPunctuation(text, "japanese"), "今日は、良い天気です。");
+    assert.strictEqual(
+      convertPunctuation(text, "academic"),
+      "今日は，良い天気です．",
+    );
+    assert.strictEqual(
+      convertPunctuation(text, "japanese"),
+      "今日は、良い天気です。",
+    );
   });
 });
 
 describe("detectPunctuationMode", () => {
   test("句読点の多数派を返す", () => {
-    assert.strictEqual(detectPunctuationMode("今日は，良い天気です．"), "academic");
-    assert.strictEqual(detectPunctuationMode("今日は、良い天気です。"), "japanese");
+    assert.strictEqual(
+      detectPunctuationMode("今日は，良い天気です．"),
+      "academic",
+    );
+    assert.strictEqual(
+      detectPunctuationMode("今日は、良い天気です。"),
+      "japanese",
+    );
   });
 
   test("句読点が存在しない場合はjapaneseを返す", () => {

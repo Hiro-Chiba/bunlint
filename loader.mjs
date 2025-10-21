@@ -37,7 +37,11 @@ async function loadTypeScript() {
 }
 
 function isRelativeSpecifier(specifier) {
-  return specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/");
+  return (
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier.startsWith("/")
+  );
 }
 
 export async function resolve(specifier, context, defaultResolve) {

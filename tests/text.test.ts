@@ -15,10 +15,7 @@ describe("countCharacters", () => {
 
   test("空白を除外できる", () => {
     const text = "テスト  データ";
-    assert.strictEqual(
-      countCharacters(text, { excludeWhitespace: true }),
-      6,
-    );
+    assert.strictEqual(countCharacters(text, { excludeWhitespace: true }), 6);
   });
 });
 

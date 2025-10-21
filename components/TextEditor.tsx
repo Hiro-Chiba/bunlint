@@ -7,6 +7,8 @@ import clsx from "clsx";
 import {
   convertPunctuation,
   detectPunctuationMode,
+  replacePunctuationCharacter,
+  type PunctuationCharacter,
   type PunctuationMode,
 } from "@/lib/punctuation";
 import { getTextStats } from "@/lib/text";
@@ -197,6 +199,32 @@ export function TextEditor() {
     setStatusMessage(statusMessages[mode]);
   };
 
+  const handlePunctuationCharacterReplace = (
+    from: PunctuationCharacter,
+    to: PunctuationCharacter,
+  ) => {
+    if (from === to) {
+      setStatusMessage(`「${from}」は既に同じ記号が選択されています。`);
+      return;
+    }
+
+    if (!text.includes(from)) {
+      setStatusMessage(`「${from}」に該当する記号が見つからなかったため、変更はありません。`);
+      return;
+    }
+
+    const converted = replacePunctuationCharacter(text, from, to);
+    if (converted === text) {
+      setStatusMessage("記号の変換結果に変更はありませんでした。");
+      return;
+    }
+
+    setText(converted);
+    setPunctuationMode(detectPunctuationMode(converted));
+    setDiffSegments(null);
+    setStatusMessage(`「${from}」を「${to}」に変換しました。`);
+  };
+
   const handleInvokeStyleTransform = async () => {
     if (isTransforming) {
       return;
@@ -209,7 +237,7 @@ export function TextEditor() {
 
     const previousText = text;
     setIsTransforming(true);
-    setStatusMessage("Gemini API にリクエストを送信しています...");
+    setStatusMessage("AI変換を実行しています...");
 
     try {
       const response = await fetch("/api/transform", {
@@ -243,7 +271,7 @@ export function TextEditor() {
       }
 
       if (!payload || !("outputText" in payload)) {
-        setStatusMessage("Gemini API から結果を取得できませんでした。");
+        setStatusMessage("AI変換の結果を取得できませんでした。");
         return;
       }
 
@@ -264,7 +292,7 @@ export function TextEditor() {
       const successMessage =
         result.message && result.message.trim()
           ? result.message
-          : `Gemini API で${writingStyleLabel}に整形しました。`;
+          : `AI変換で${writingStyleLabel}に整形しました。`;
       setStatusMessage(successMessage);
 
       const entry: HistoryEntry = {
@@ -338,12 +366,12 @@ export function TextEditor() {
             >
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <h3 id={diffTitleId} className="font-semibold text-slate-700">
-                  Gemini差分プレビュー
+                  AI差分プレビュー
                 </h3>
                 <span>追加: 緑 / 削除: 赤</span>
               </div>
               <p id={diffDescriptionId} className="text-xs text-slate-500">
-                Gemini API による変更箇所を背景色でハイライト表示しています。
+                AI変換による変更箇所を背景色でハイライト表示しています。
               </p>
               <div className="max-h-48 overflow-auto rounded border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
                 {diffSegments.map((segment, index) => {
@@ -374,6 +402,7 @@ export function TextEditor() {
         <TransformationControls
           punctuationMode={punctuationMode}
           onPunctuationModeChange={handlePunctuationModeChange}
+          onPunctuationCharacterReplace={handlePunctuationCharacterReplace}
           writingStyle={writingStyle}
           onWritingStyleChange={setWritingStyle}
           onInvokeStyleTransform={handleInvokeStyleTransform}

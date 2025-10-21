@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 const siteTitle = "bunlint（ブンリント） | 日本語テキスト整形スタジオ";
 const siteDescription =
-  "bunlint（ブンリント）は、句読点スタイルの統一と Gemini API を活用した語尾調整で文章をすばやく整えられる日本語向けエディタです。";
+  "bunlint（ブンリント）は、句読点スタイルの統一とAIを活用した語尾調整で文章をすばやく整えられる日本語向けエディタです。";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bunlint.example.com"),
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: siteDescription,
   keywords: [
     "テキスト変換",
-    "Gemini API",
+    "AI変換",
     "句読点変換",
     "語尾調整",
     "日本語エディタ",

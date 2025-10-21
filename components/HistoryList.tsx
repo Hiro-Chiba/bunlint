@@ -37,8 +37,8 @@ export function HistoryList({ entries, isLoading = false }: HistoryListProps) {
       <section className="rounded-lg border border-dashed border-slate-200 bg-slate-100/60 p-4 text-sm text-slate-500">
         <h3 className="text-sm font-semibold text-slate-600">変換履歴</h3>
         <p className="mt-2">
-          まだ変換履歴がありません。Gemini API
-          で語尾変換を実行すると、ここに最新10件の結果が保存されます。
+          まだ変換履歴がありません。AI変換を実行すると、ここに最新10件の結果が
+          保存されます。
         </p>
       </section>
     );

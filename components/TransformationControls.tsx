@@ -1,14 +1,21 @@
 "use client";
 
 import clsx from "clsx";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
-import type { PunctuationMode } from "@/lib/punctuation";
+import type {
+  PunctuationCharacter,
+  PunctuationMode,
+} from "@/lib/punctuation";
 
 type TransformationControlsProps = {
   punctuationMode: PunctuationMode;
   onPunctuationModeChange: (mode: PunctuationMode) => void;
+  onPunctuationCharacterReplace?: (
+    from: PunctuationCharacter,
+    to: PunctuationCharacter,
+  ) => void;
   writingStyle: WritingStyle;
   onWritingStyleChange: (style: WritingStyle) => void;
   onInvokeStyleTransform?: () => void;
@@ -21,9 +28,22 @@ const punctuationModeLabels: Record<PunctuationMode, string> = {
   western: "欧文（,.）",
 };
 
+const punctuationSelectOptions: Array<{
+  value: PunctuationCharacter;
+  label: string;
+}> = [
+  { value: "、", label: "、（全角読点）" },
+  { value: "。", label: "。（全角句点）" },
+  { value: "，", label: "，（全角カンマ）" },
+  { value: "．", label: "．（全角ピリオド）" },
+  { value: ",", label: ",（半角カンマ）" },
+  { value: ".", label: ".（半角ピリオド）" },
+];
+
 export function TransformationControls({
   punctuationMode,
   onPunctuationModeChange,
+  onPunctuationCharacterReplace,
   writingStyle,
   onWritingStyleChange,
   onInvokeStyleTransform,
@@ -31,6 +51,19 @@ export function TransformationControls({
 }: TransformationControlsProps) {
   const selectId = useId();
   const helperId = useId();
+  const fromSelectId = useId();
+  const toSelectId = useId();
+
+  const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
+  const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
+
+  const handleIndividualReplace = () => {
+    if (!onPunctuationCharacterReplace) {
+      return;
+    }
+
+    onPunctuationCharacterReplace(fromCharacter, toCharacter);
+  };
 
   return (
     <section className="space-y-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -59,13 +92,65 @@ export function TransformationControls({
             ),
           )}
         </div>
+
+        <div className="mt-6 rounded-md border border-slate-100 bg-slate-50 p-3">
+          <h4 className="text-xs font-semibold text-slate-600">
+            句読点を個別に変換
+          </h4>
+          <p className="mt-1 text-xs text-slate-500">
+            「,」「.」「、」「。」などの記号を指定して置き換えられます。
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block" htmlFor={fromSelectId}>
+              <span className="text-xs font-medium text-slate-500">変換元</span>
+              <select
+                id={fromSelectId}
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                value={fromCharacter}
+                onChange={(event) =>
+                  setFromCharacter(event.target.value as PunctuationCharacter)
+                }
+              >
+                {punctuationSelectOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block" htmlFor={toSelectId}>
+              <span className="text-xs font-medium text-slate-500">変換先</span>
+              <select
+                id={toSelectId}
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                value={toCharacter}
+                onChange={(event) =>
+                  setToCharacter(event.target.value as PunctuationCharacter)
+                }
+              >
+                {punctuationSelectOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button
+            type="button"
+            className="mt-3 inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            onClick={handleIndividualReplace}
+            disabled={!onPunctuationCharacterReplace}
+          >
+            指定した記号に変換
+          </button>
+        </div>
       </div>
 
       <div>
         <h3 className="text-sm font-semibold text-slate-700">語尾スタイル</h3>
         <p className="mt-1 text-xs text-slate-500" id={helperId}>
-          Gemini API
-          を利用して語尾やトーンを整えます。スタイルによって文章全体の印象が変わります。
+          AIを利用して語尾やトーンを整えます。スタイルによって文章全体の印象が変わります。
         </p>
         <label className="mt-3 block" htmlFor={selectId}>
           <span className="text-xs font-medium text-slate-500">スタイル</span>

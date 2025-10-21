@@ -1,5 +1,16 @@
 export type PunctuationMode = "japanese" | "academic" | "western";
 
+export const punctuationCharacters = [
+  "、",
+  "。",
+  "，",
+  "．",
+  ",",
+  ".",
+] as const;
+
+export type PunctuationCharacter = (typeof punctuationCharacters)[number];
+
 const punctuationPattern = /[、。，．,\.]/g;
 
 const academicMap: Record<string, string> = {
@@ -28,6 +39,23 @@ const punctuationGroups: Record<PunctuationMode, Set<string>> = {
   japanese: new Set(["、", "。"]),
   western: new Set([",", "."]),
 };
+
+function escapeRegExp(source: string): string {
+  return source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function replacePunctuationCharacter(
+  text: string,
+  from: PunctuationCharacter,
+  to: PunctuationCharacter,
+): string {
+  if (from === to) {
+    return text;
+  }
+
+  const pattern = new RegExp(escapeRegExp(from), "g");
+  return text.replace(pattern, to);
+}
 
 function replaceWithMap(text: string, map: Record<string, string>): string {
   return text.replace(punctuationPattern, (char) => map[char] ?? char);

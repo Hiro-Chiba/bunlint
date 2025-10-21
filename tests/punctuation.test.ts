@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 import {
   convertPunctuation,
   detectPunctuationMode,
+  replacePunctuationCharacter,
   toAcademicPunctuation,
   toJapanesePunctuation,
   toWesternPunctuation,
@@ -112,5 +113,31 @@ describe("detectPunctuationMode", () => {
     assert.strictEqual(detectPunctuationMode(text), "japanese");
     const westernDominant = "ここは,欧文.ここは,欧文,終わり。";
     assert.strictEqual(detectPunctuationMode(westernDominant), "western");
+  });
+});
+
+describe("replacePunctuationCharacter", () => {
+  test(
+    "指定した記号のみを置換し、他の記号には影響しない",
+    () => {
+      const input = "A,B。C.D，E．F";
+      const result = replacePunctuationCharacter(input, ",", "、");
+
+      assert.strictEqual(result, "A、B。C.D，E．F");
+    },
+  );
+
+  test("記号が存在しない場合は入力をそのまま返す", () => {
+    const input = "これはテストです。";
+    const result = replacePunctuationCharacter(input, ",", "、");
+
+    assert.strictEqual(result, input);
+  });
+
+  test("変換元と変換先が同じ場合は入力をそのまま返す", () => {
+    const input = "。";
+    const result = replacePunctuationCharacter(input, "。", "。");
+
+    assert.strictEqual(result, input);
   });
 });

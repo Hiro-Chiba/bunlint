@@ -24,6 +24,20 @@ function isPunctuationMode(value: unknown): value is PunctuationMode {
   return value === "japanese" || value === "academic" || value === "western";
 }
 
+function toUserFacingErrorMessage(error: GeminiError): string {
+  if (/GEMINI_API_KEY/.test(error.message)) {
+    return "AI変換の設定が完了していません。管理者にお問い合わせください。";
+  }
+
+  if (/Gemini/i.test(error.message)) {
+    return error.message
+      .replace(/Gemini API\s*/gi, "AI変換")
+      .replace(/Gemini/gi, "AI");
+  }
+
+  return error.message;
+}
+
 export async function POST(request: Request) {
   let body: TransformRequestBody | null = null;
 
@@ -95,14 +109,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof GeminiError) {
       return NextResponse.json(
-        { error: error.message },
+        { error: toUserFacingErrorMessage(error) },
         { status: error.status },
       );
     }
 
-    console.error("Gemini transform failed", error);
+    console.error("AI transform failed", error);
     return NextResponse.json(
-      { error: "Gemini API との通信で予期せぬエラーが発生しました。" },
+      { error: "AI変換で予期せぬエラーが発生しました。" },
       { status: 500 },
     );
   }

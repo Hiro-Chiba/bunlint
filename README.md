@@ -5,11 +5,14 @@ Next.js 14（App Router）と Tailwind CSS を用いたテキスト変換ツー�
 ## セットアップ
 
 ```bash
-bun install
-bun run dev   # 開発サーバーを起動
-bun test      # Bun 製ユニットテストを実行
-bun run lint  # Next.js ESLint を実行
+npm install
+npm run dev    # 開発サーバーを起動
+npm test       # Node.js のテストランナーでユニットテストを実行
+npm run lint   # Next.js の ESLint を実行
+npm run build  # 本番ビルドを作成
 ```
+
+整形に関するユーティリティはすべて TypeScript で記述しているため、`npm test` ではカスタムローダーを `--import` で登録し、Node.js 標準のテストランナーから直接実行しています。整形やコードスタイルの確認には `npm run format`（Prettier のチェック）も利用できます。
 
 Tailwind CSS の設定ファイルは `tailwind.config.ts` に配置しており、`app/globals.css` でベーススタイルを読み込んでいます。
 

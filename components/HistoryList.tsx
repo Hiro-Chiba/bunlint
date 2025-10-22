@@ -40,18 +40,6 @@ const retentionLabel =
 
 const retentionMessage = `保存から${retentionLabel}で自動削除されます。`;
 
-const confidenceLabels: Record<AiConfidenceLevel, string> = {
-  low: "AIらしさは低め",
-  medium: "どちらとも言えない",
-  high: "AIらしさが高い",
-};
-
-const confidenceBadgeClasses: Record<AiConfidenceLevel, string> = {
-  low: "border-emerald-200 bg-emerald-100 text-emerald-700",
-  medium: "border-amber-200 bg-amber-100 text-amber-700",
-  high: "border-rose-200 bg-rose-100 text-rose-700",
-};
-
 function TrashIcon({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -179,13 +167,6 @@ export function HistoryList({
                     <span className="text-lg font-bold text-emerald-700">
                       {Math.round(entry.aiScore)}%
                     </span>
-                    {entry.aiConfidence && (
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${confidenceBadgeClasses[entry.aiConfidence]}`}
-                      >
-                        {confidenceLabels[entry.aiConfidence]}
-                      </span>
-                    )}
                   </div>
                   <p className="text-[11px] text-emerald-800">
                     チェック日時:{" "}

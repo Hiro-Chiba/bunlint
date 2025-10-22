@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import clsx from "clsx";
 
@@ -117,51 +117,6 @@ const createWordSegments = (value: string): WordSegment[] =>
       value: segment,
       isWhitespace: /\s+/.test(segment),
     }));
-
-type SentenceSegmentType = "sentence" | "separator";
-
-type SentenceSegment = {
-  value: string;
-  type: SentenceSegmentType;
-};
-
-const SENTENCE_TERMINATORS = ["。", "．", ".", "!", "?", "！", "？"] as const;
-
-const escapedSentenceTerminators = SENTENCE_TERMINATORS.map((char) =>
-  char.replace(/[\\^$*+?.()|[\]{}-]/g, "\\$&"),
-).join("");
-
-const sentenceBoundaryPattern = new RegExp(
-  `[^${escapedSentenceTerminators}]+(?:[${escapedSentenceTerminators}]+|$)`,
-  "gu",
-);
-
-const createSentenceSegments = (value: string): SentenceSegment[] => {
-  if (value.length === 0) {
-    return [];
-  }
-
-  const segments: SentenceSegment[] = [];
-  let lastIndex = 0;
-
-  for (const match of value.matchAll(sentenceBoundaryPattern)) {
-    const matchValue = match[0];
-    const startIndex = match.index ?? 0;
-
-    if (startIndex > lastIndex) {
-      segments.push({ value: value.slice(lastIndex, startIndex), type: "separator" });
-    }
-
-    segments.push({ value: matchValue, type: "sentence" });
-    lastIndex = startIndex + matchValue.length;
-  }
-
-  if (lastIndex < value.length) {
-    segments.push({ value: value.slice(lastIndex), type: "separator" });
-  }
-
-  return segments;
-};
 
 const toDisplayValue = (segment: string) =>
   segment.replace(/ /g, "\u00A0").replace(/\t/g, "\u00A0\u00A0\u00A0\u00A0");
@@ -349,89 +304,25 @@ export function TextEditor() {
 
   const stats = useMemo(() => getTextStats(text), [text]);
   const highlightOverlayContent = useMemo(() => {
-    if (highlightMode === "none" || text.length === 0) {
+    if (highlightMode !== "words" || text.length === 0) {
       return null;
     }
 
-    if (highlightMode === "words") {
-      const segments = createWordSegments(text);
+    const segments = createWordSegments(text);
 
-      return segments.map((segment, index) => (
-        <span
-          key={`word-${index}`}
-          className={clsx(
-            "box-decoration-clone rounded-sm",
-            segment.isWhitespace
-              ? "bg-emerald-100/70"
-              : "bg-emerald-200/70 px-1",
-          )}
-        >
-          {toDisplayValue(segment.value)}
-        </span>
-      ));
-    }
-
-    if (highlightMode === "sentences") {
-      const segments = createSentenceSegments(text);
-      let colorIndex = 0;
-
-      const renderSegmentValue = (
-        value: string,
-        backgroundClass: string | null,
-        segmentIndex: number,
-        keyPrefix: "sentence" | "separator",
-      ) => {
-        const characters = Array.from(value);
-        const nodes: JSX.Element[] = [];
-
-        characters.forEach((character, charIndex) => {
-          if (character === "\r") {
-            return;
-          }
-
-          if (character === "\n") {
-            nodes.push(
-              <Fragment key={`${keyPrefix}-${segmentIndex}-break-${charIndex}`}>
-                {"\n"}
-              </Fragment>,
-            );
-            return;
-          }
-
-          const displayValue = toDisplayValue(character);
-          const hasBackground = backgroundClass !== null;
-
-          nodes.push(
-            <span
-              key={`${keyPrefix}-${segmentIndex}-char-${charIndex}`}
-              className={clsx(
-                "inline-block",
-                hasBackground && "rounded-sm px-[0.2em]",
-                hasBackground && backgroundClass,
-              )}
-            >
-              {displayValue}
-            </span>,
-          );
-        });
-
-        return nodes;
-      };
-
-      return segments.flatMap((segment, index) => {
-        if (segment.type === "sentence") {
-          const backgroundClass =
-            colorIndex % 2 === 0 ? "bg-sky-200/70" : "bg-sky-100/70";
-          colorIndex += 1;
-
-          return renderSegmentValue(segment.value, backgroundClass, index, "sentence");
-        }
-
-        return renderSegmentValue(segment.value, null, index, "separator");
-      });
-    }
-
-    return null;
+    return segments.map((segment, index) => (
+      <span
+        key={`word-${index}`}
+        className={clsx(
+          "box-decoration-clone rounded-sm",
+          segment.isWhitespace
+            ? "bg-emerald-100/70"
+            : "bg-emerald-200/70 px-1",
+        )}
+      >
+        {toDisplayValue(segment.value)}
+      </span>
+    ));
   }, [highlightMode, text]);
   const shouldShowHighlightOverlay = highlightOverlayContent !== null;
   const textareaClassName = clsx(

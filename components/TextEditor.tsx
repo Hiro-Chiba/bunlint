@@ -12,9 +12,14 @@ import {
   type PunctuationMode,
 } from "@/lib/punctuation";
 import { getTextStats } from "@/lib/text";
-import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import {
+  writingStylePresets,
+  type AiConfidenceLevel,
+  type WritingStyle,
+} from "@/lib/gemini";
 import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
 import { diffWords, type DiffSegment } from "@/lib/diff";
+import { getNextJstMidnight, isSameJstDate } from "@/lib/jst";
 
 import {
   HistoryList,
@@ -28,6 +33,25 @@ const USER_ID_STORAGE_KEY = "bunlint:user-id";
 const HISTORY_STORAGE_KEY_PREFIX = "bunlint:history:user:";
 const LEGACY_HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
+const AI_CHECK_STORAGE_KEY_PREFIX = "bunlint:ai-check:user:";
+
+const AI_CONFIDENCE_LABELS: Record<AiConfidenceLevel, string> = {
+  low: "AIらしさは低め",
+  medium: "どちらとも言えない",
+  high: "AIらしさが高い",
+};
+
+const AI_CONFIDENCE_BADGE_CLASSES: Record<AiConfidenceLevel, string> = {
+  low: "border-emerald-200 bg-emerald-100 text-emerald-700",
+  medium: "border-amber-200 bg-amber-100 text-amber-700",
+  high: "border-rose-200 bg-rose-100 text-rose-700",
+};
+
+const DEFAULT_AI_REASONING: Record<AiConfidenceLevel, string> = {
+  low: "AI生成らしさは低いと判断されました。",
+  medium: "AI生成らしさは中程度と判断されました。",
+  high: "AI生成らしさが高いと判断されました。",
+};
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -40,9 +64,29 @@ const generateIdentifier = () =>
 const createHistoryStorageKey = (userId: string) =>
   `${HISTORY_STORAGE_KEY_PREFIX}${userId}`;
 
+const createAiCheckStorageKey = (userId: string) =>
+  `${AI_CHECK_STORAGE_KEY_PREFIX}${userId}`;
+
 const isWritingStyle = (value: unknown): value is WritingStyle =>
   typeof value === "string" &&
   Object.prototype.hasOwnProperty.call(writingStylePresets, value);
+
+const isAiConfidenceLevel = (
+  value: unknown,
+): value is AiConfidenceLevel =>
+  value === "low" || value === "medium" || value === "high";
+
+const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
+  if (score >= 66) {
+    return "high";
+  }
+
+  if (score >= 34) {
+    return "medium";
+  }
+
+  return "low";
+};
 
 const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
   const now = Date.now();
@@ -71,6 +115,14 @@ const resolveWritingStyleFromLabel = (label: unknown): WritingStyle | null => {
   }
 
   return null;
+};
+
+type StoredAiCheckSnapshot = {
+  score: number;
+  confidence: AiConfidenceLevel;
+  reasoning?: string;
+  checkedAt: string;
+  textSnapshot?: string;
 };
 
 const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
@@ -112,7 +164,17 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
       ? record.writingStyleLabel
       : writingStylePresets[writingStyle]?.label;
 
-  return {
+  let aiScore: number | undefined;
+  if (typeof record.aiScore === "number" && Number.isFinite(record.aiScore)) {
+    aiScore = record.aiScore;
+  } else if (typeof record.aiScore === "string") {
+    const parsed = Number.parseFloat(record.aiScore);
+    if (Number.isFinite(parsed)) {
+      aiScore = parsed;
+    }
+  }
+
+  const normalized: HistoryEntry = {
     id: record.id,
     inputText: record.inputText,
     outputText: record.outputText,
@@ -121,6 +183,24 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
     punctuationMode: record.punctuationMode,
     createdAt: record.createdAt,
   };
+
+  if (typeof aiScore === "number") {
+    normalized.aiScore = aiScore;
+  }
+
+  if (isAiConfidenceLevel(record.aiConfidence)) {
+    normalized.aiConfidence = record.aiConfidence;
+  }
+
+  if (typeof record.aiReasoning === "string" && record.aiReasoning) {
+    normalized.aiReasoning = record.aiReasoning;
+  }
+
+  if (typeof record.aiCheckedAt === "string") {
+    normalized.aiCheckedAt = record.aiCheckedAt;
+  }
+
+  return normalized;
 };
 
 type TransformSuccessResponse = {
@@ -133,6 +213,33 @@ type TransformSuccessResponse = {
 type TransformErrorResponse = {
   error: string;
 };
+
+type AiCheckResultState = {
+  score: number;
+  confidence: AiConfidenceLevel;
+  reasoning: string;
+  checkedAt: string;
+  textSnapshot: string;
+};
+
+type AiCheckSuccessResponse = {
+  score?: unknown;
+  confidence?: unknown;
+  reasoning?: unknown;
+  checkedAt?: unknown;
+};
+
+type AiCheckErrorResponse = {
+  error?: unknown;
+  lastCheckedAt?: unknown;
+};
+
+const isAiCheckSuccessPayload = (
+  payload: AiCheckSuccessResponse | AiCheckErrorResponse | null,
+): payload is AiCheckSuccessResponse & { score: number; checkedAt: string } =>
+  !!payload &&
+  typeof (payload as AiCheckSuccessResponse).score === "number" &&
+  typeof (payload as AiCheckSuccessResponse).checkedAt === "string";
 
 export function TextEditor() {
   const [text, setText] = useState(
@@ -152,6 +259,12 @@ export function TextEditor() {
   const [activeHistoryEntryId, setActiveHistoryEntryId] = useState<string | null>(
     null,
   );
+  const [aiCheckResult, setAiCheckResult] = useState<AiCheckResultState | null>(
+    null,
+  );
+  const [aiCheckMessage, setAiCheckMessage] = useState<string | null>(null);
+  const [isCheckingAi, setIsCheckingAi] = useState(false);
+  const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -287,12 +400,71 @@ export function TextEditor() {
     }
   }, [historyEntries, hasLoadedHistory, userId]);
 
+  useEffect(() => {
+    if (!isUserInitialized || typeof window === "undefined") {
+      return;
+    }
+
+    if (!isNonEmptyString(userId)) {
+      setLastAiCheckAt(null);
+      if (aiCheckResult) {
+        setAiCheckResult(null);
+      }
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(
+        createAiCheckStorageKey(userId),
+      );
+
+      if (!stored) {
+        setLastAiCheckAt(null);
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(stored);
+      if (!parsed || typeof parsed !== "object") {
+        return;
+      }
+
+      const snapshot = parsed as Partial<StoredAiCheckSnapshot>;
+
+      if (typeof snapshot.checkedAt === "string") {
+        setLastAiCheckAt(snapshot.checkedAt);
+      }
+
+      if (
+        typeof snapshot.score === "number" &&
+        isAiConfidenceLevel(snapshot.confidence) &&
+        typeof snapshot.checkedAt === "string" &&
+        typeof snapshot.textSnapshot === "string" &&
+        snapshot.textSnapshot === text
+      ) {
+        setAiCheckResult({
+          score: snapshot.score,
+          confidence: snapshot.confidence,
+          reasoning:
+            typeof snapshot.reasoning === "string" && snapshot.reasoning
+              ? snapshot.reasoning
+              : DEFAULT_AI_REASONING[snapshot.confidence],
+          checkedAt: snapshot.checkedAt,
+          textSnapshot: snapshot.textSnapshot,
+        });
+      }
+    } catch (error) {
+      console.error("AIチェッカーの履歴読み込みに失敗しました", error);
+    }
+  }, [aiCheckResult, isUserInitialized, text, userId]);
+
   const handleTextChange = (value: string) => {
     setText(value);
     setPunctuationMode(detectPunctuationMode(value));
     setStatusMessage(null);
     setDiffSegments(null);
     setActiveHistoryEntryId(null);
+    setAiCheckResult(null);
+    setAiCheckMessage(null);
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -305,6 +477,8 @@ export function TextEditor() {
     setPunctuationMode(mode);
     setDiffSegments(null);
     setActiveHistoryEntryId(null);
+    setAiCheckResult(null);
+    setAiCheckMessage(null);
     const statusMessages: Record<PunctuationMode, string> = {
       academic: "句読点を学術スタイル（，．）に変換しました。",
       japanese: "句読点を和文スタイル（、。）に変換しました。",
@@ -338,6 +512,8 @@ export function TextEditor() {
     setPunctuationMode(detectPunctuationMode(converted));
     setDiffSegments(null);
     setActiveHistoryEntryId(null);
+    setAiCheckResult(null);
+    setAiCheckMessage(null);
     setStatusMessage(`「${from}」を「${to}」に変換しました。`);
   };
 
@@ -354,6 +530,8 @@ export function TextEditor() {
     const previousText = text;
     setIsTransforming(true);
     setStatusMessage("AI変換を実行しています...");
+    setAiCheckResult(null);
+    setAiCheckMessage(null);
 
     try {
       const response = await fetch("/api/transform", {
@@ -439,9 +617,193 @@ export function TextEditor() {
     }
   };
 
+  const handleInvokeAiCheck = async () => {
+    if (isCheckingAi) {
+      return;
+    }
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setAiCheckMessage("AIチェッカーを実行するテキストを入力してください。");
+      return;
+    }
+
+    const now = new Date();
+    if (lastAiCheckAt && isSameJstDate(lastAiCheckAt, now)) {
+      const nextWindow = getNextJstMidnight(new Date(lastAiCheckAt));
+      const nextLabel = nextWindow.toLocaleString("ja-JP", {
+        timeZone: "Asia/Tokyo",
+      });
+      setAiCheckMessage(
+        `AIチェッカーは日本時間で1日1回までです。次回は${nextLabel}以降にお試しください。`,
+      );
+      return;
+    }
+
+    setIsCheckingAi(true);
+    setAiCheckMessage("AIチェッカーを実行しています...");
+
+    try {
+      const response = await fetch("/api/ai-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inputText: text }),
+      });
+
+      let payload:
+        | AiCheckSuccessResponse
+        | AiCheckErrorResponse
+        | null = null;
+      try {
+        payload = (await response.json()) as
+          | AiCheckSuccessResponse
+          | AiCheckErrorResponse;
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const errorPayload = payload as AiCheckErrorResponse | null;
+        const errorMessage =
+          errorPayload && typeof errorPayload.error === "string"
+            ? errorPayload.error
+            : "AIチェッカーの実行に失敗しました。時間をおいて再度お試しください。";
+
+        if (
+          errorPayload &&
+          typeof errorPayload.lastCheckedAt === "string"
+        ) {
+          setLastAiCheckAt(errorPayload.lastCheckedAt);
+        }
+
+        setAiCheckMessage(errorMessage);
+        return;
+      }
+
+      if (!isAiCheckSuccessPayload(payload)) {
+        setAiCheckMessage("AIチェッカーの結果を取得できませんでした。");
+        return;
+      }
+
+      const successPayload = payload;
+
+      const score = Math.round(
+        Math.max(0, Math.min(100, successPayload.score)),
+      );
+      const confidence = isAiConfidenceLevel(successPayload.confidence)
+        ? successPayload.confidence
+        : inferConfidenceFromScore(score);
+      const reasoning =
+        typeof successPayload.reasoning === "string" &&
+        successPayload.reasoning.trim().length > 0
+          ? successPayload.reasoning.trim()
+          : DEFAULT_AI_REASONING[confidence];
+      const checkedAt: string = successPayload.checkedAt;
+
+      const result: AiCheckResultState = {
+        score,
+        confidence,
+        reasoning,
+        checkedAt,
+        textSnapshot: text,
+      };
+
+      setAiCheckResult(result);
+      setAiCheckMessage(`AI生成らしさを判定しました（${score}%）。`);
+      setLastAiCheckAt(checkedAt);
+
+      if (typeof window !== "undefined" && isNonEmptyString(userId)) {
+        const snapshot: StoredAiCheckSnapshot = {
+          score: result.score,
+          confidence: result.confidence,
+          reasoning: result.reasoning,
+          checkedAt: result.checkedAt,
+          textSnapshot: result.textSnapshot,
+        };
+
+        try {
+          window.localStorage.setItem(
+            createAiCheckStorageKey(userId),
+            JSON.stringify(snapshot),
+          );
+        } catch (error) {
+          console.error("AIチェッカー結果の保存に失敗しました", error);
+        }
+      }
+
+      let matchedEntryId: string | null = null;
+
+      setHistoryEntries((current) => {
+        const updateEntries = (
+          entries: HistoryEntry[],
+          predicate: (entry: HistoryEntry) => boolean,
+        ) => {
+          let updated = false;
+          const nextEntries = entries.map((entry) => {
+            if (!updated && predicate(entry)) {
+              updated = true;
+              matchedEntryId = entry.id;
+              return {
+                ...entry,
+                aiScore: result.score,
+                aiConfidence: result.confidence,
+                aiReasoning: result.reasoning,
+                aiCheckedAt: result.checkedAt,
+              };
+            }
+            return entry;
+          });
+
+          return { updated, entries: nextEntries };
+        };
+
+        const byOutput = updateEntries(current, (entry) => entry.outputText === text);
+        if (byOutput.updated) {
+          return byOutput.entries;
+        }
+
+        const byInput = updateEntries(current, (entry) => entry.inputText === text);
+        if (byInput.updated) {
+          return byInput.entries;
+        }
+
+        return current;
+      });
+
+      if (matchedEntryId) {
+        setActiveHistoryEntryId(matchedEntryId);
+      }
+    } catch (error) {
+      console.error("AI checker request failed", error);
+      setAiCheckMessage(
+        "AIチェッカーの呼び出しに失敗しました。通信環境をご確認のうえ、再度お試しください。",
+      );
+    } finally {
+      setIsCheckingAi(false);
+    }
+  };
+
   const textareaDescribedBy = statusMessage
     ? `${editorDescriptionId} ${statusMessageId}`
     : editorDescriptionId;
+
+  const aiResultForCurrentText =
+    aiCheckResult && aiCheckResult.textSnapshot === text
+      ? aiCheckResult
+      : null;
+
+  const hasCheckedToday =
+    typeof lastAiCheckAt === "string" && lastAiCheckAt
+      ? isSameJstDate(lastAiCheckAt, new Date())
+      : false;
+
+  const nextAiCheckWindow = lastAiCheckAt
+    ? getNextJstMidnight(new Date(lastAiCheckAt))
+    : null;
+
+  const nextAiCheckLabel = nextAiCheckWindow
+    ? nextAiCheckWindow.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
+    : null;
 
   const latestHistoryEntry = historyEntries[0] ?? null;
   const latestHistoryLabel = latestHistoryEntry
@@ -476,6 +838,25 @@ export function TextEditor() {
       setStatusMessage(
         messageOverride ?? `履歴から${writingStyleLabel}の変換結果を復元しました。`,
       );
+      if (typeof entry.aiScore === "number") {
+        const confidence = entry.aiConfidence
+          ? entry.aiConfidence
+          : inferConfidenceFromScore(entry.aiScore);
+        const reasoning =
+          entry.aiReasoning && entry.aiReasoning.trim().length > 0
+            ? entry.aiReasoning
+            : DEFAULT_AI_REASONING[confidence];
+        setAiCheckResult({
+          score: Math.round(entry.aiScore),
+          confidence,
+          reasoning,
+          checkedAt: entry.aiCheckedAt ?? entry.createdAt,
+          textSnapshot: entry.outputText,
+        });
+      } else {
+        setAiCheckResult(null);
+      }
+      setAiCheckMessage(null);
     } else {
       setText(entry.inputText);
       setPunctuationMode(detectPunctuationMode(entry.inputText));
@@ -483,6 +864,8 @@ export function TextEditor() {
       setStatusMessage(
         messageOverride ?? "履歴に保存されていた変換前のテキストを復元しました。",
       );
+      setAiCheckResult(null);
+      setAiCheckMessage(null);
     }
 
     setDiffSegments(null);
@@ -624,6 +1007,61 @@ export function TextEditor() {
             </section>
           )}
           <StatsPanel stats={stats} />
+          <section className="space-y-3 rounded-md border border-emerald-100 bg-emerald-50/50 p-4 text-sm text-emerald-900">
+            <header className="space-y-1">
+              <h3 className="text-sm font-semibold text-emerald-800">
+                AIチェッカー
+              </h3>
+              <p className="text-xs text-emerald-700">
+                AI生成らしさを0〜100%で判定します。日本時間で1日に1回のみ実行できます。
+              </p>
+            </header>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <button
+                type="button"
+                onClick={handleInvokeAiCheck}
+                disabled={
+                  isCheckingAi || hasCheckedToday || text.trim().length === 0
+                }
+                className="rounded-md border border-emerald-400 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-200"
+              >
+                {isCheckingAi ? "判定中..." : "AI生成らしさを判定"}
+              </button>
+              {hasCheckedToday && nextAiCheckLabel && (
+                <span className="text-xs text-emerald-800">
+                  次回判定可能: {nextAiCheckLabel}
+                </span>
+              )}
+            </div>
+            {aiCheckMessage && (
+              <p className="text-xs text-emerald-800">{aiCheckMessage}</p>
+            )}
+            {aiResultForCurrentText && (
+              <div className="space-y-2 rounded-md border border-emerald-200 bg-white p-3 text-xs text-emerald-900">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                  <span className="text-lg font-bold text-emerald-700">
+                    {aiResultForCurrentText.score}%
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_CONFIDENCE_BADGE_CLASSES[aiResultForCurrentText.confidence]}`}
+                  >
+                    {AI_CONFIDENCE_LABELS[aiResultForCurrentText.confidence]}
+                  </span>
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  判定日時:
+                  {new Date(
+                    aiResultForCurrentText.checkedAt,
+                  ).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                </p>
+                {aiResultForCurrentText.reasoning && (
+                  <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-emerald-800">
+                    {aiResultForCurrentText.reasoning}
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
         </section>
         <TransformationControls
           punctuationMode={punctuationMode}
@@ -659,6 +1097,33 @@ export function TextEditor() {
               </p>
             </div>
           </div>
+          {typeof latestHistoryEntry.aiScore === "number" && (
+            <div className="rounded-md border border-emerald-200 bg-white/80 p-3 text-xs text-emerald-900">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                <span className="text-lg font-bold text-emerald-700">
+                  {Math.round(latestHistoryEntry.aiScore)}%
+                </span>
+                {latestHistoryEntry.aiConfidence && (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_CONFIDENCE_BADGE_CLASSES[latestHistoryEntry.aiConfidence]}`}
+                  >
+                    {AI_CONFIDENCE_LABELS[latestHistoryEntry.aiConfidence]}
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-800">
+                判定日時:
+                {new Date(
+                  latestHistoryEntry.aiCheckedAt ?? latestHistoryEntry.createdAt,
+                ).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+              </p>
+              {latestHistoryEntry.aiReasoning && (
+                <p className="mt-1 whitespace-pre-wrap text-[11px] text-emerald-800">
+                  {latestHistoryEntry.aiReasoning}
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 text-xs">
             <button
               type="button"

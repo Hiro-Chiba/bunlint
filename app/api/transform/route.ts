@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   GeminiError,
+  toUserFacingGeminiErrorMessage,
   transformTextWithGemini,
   writingStylePresets,
   type WritingStyle,
@@ -22,20 +23,6 @@ function isWritingStyle(value: unknown): value is WritingStyle {
 
 function isPunctuationMode(value: unknown): value is PunctuationMode {
   return value === "japanese" || value === "academic" || value === "western";
-}
-
-function toUserFacingErrorMessage(error: GeminiError): string {
-  if (/GEMINI_API_KEY/.test(error.message)) {
-    return "AI変換の設定が完了していません。管理者にお問い合わせください。";
-  }
-
-  if (/Gemini/i.test(error.message)) {
-    return error.message
-      .replace(/Gemini API\s*/gi, "AI変換")
-      .replace(/Gemini/gi, "AI");
-  }
-
-  return error.message;
 }
 
 export async function POST(request: Request) {
@@ -109,7 +96,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof GeminiError) {
       return NextResponse.json(
-        { error: toUserFacingErrorMessage(error) },
+        { error: toUserFacingGeminiErrorMessage(error) },
         { status: error.status },
       );
     }

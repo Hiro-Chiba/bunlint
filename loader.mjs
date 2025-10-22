@@ -49,6 +49,40 @@ export async function resolve(specifier, context, defaultResolve) {
     return defaultResolve(specifier, context, defaultResolve);
   }
 
+  if (specifier === "next/server") {
+    const stubUrl = new URL("./tests/stubs/next-server.ts", import.meta.url);
+    return {
+      format: "module",
+      shortCircuit: true,
+      url: stubUrl.href,
+    };
+  }
+
+  if (specifier.startsWith("@/")) {
+    const baseUrl = new URL("./", import.meta.url);
+    const absolute = new URL(specifier.slice(2), baseUrl).href;
+
+    try {
+      return await defaultResolve(absolute, context, defaultResolve);
+    } catch (error) {
+      if (error && error.code === "ERR_MODULE_NOT_FOUND") {
+        for (const extension of TS_EXTENSIONS) {
+          try {
+            return await defaultResolve(
+              `${absolute}${extension}`,
+              context,
+              defaultResolve,
+            );
+          } catch {
+            // continue
+          }
+        }
+      }
+
+      throw error;
+    }
+  }
+
   try {
     return await defaultResolve(specifier, context, defaultResolve);
   } catch (error) {

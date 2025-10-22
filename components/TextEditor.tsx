@@ -76,6 +76,32 @@ const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
   return "low";
 };
 
+const AI_CONFIDENCE_PRESENTATION: Record<
+  AiConfidenceLevel,
+  {
+    scoreClass: string;
+    badgeLabel: string;
+    badgeClass: string;
+  }
+> = {
+  low: {
+    scoreClass: "text-emerald-700",
+    badgeLabel: "AIらしさ低め",
+    badgeClass:
+      "border border-emerald-200 bg-emerald-100 text-emerald-800",
+  },
+  medium: {
+    scoreClass: "text-amber-600",
+    badgeLabel: "AIらしさ中程度",
+    badgeClass: "border border-amber-200 bg-amber-100 text-amber-800",
+  },
+  high: {
+    scoreClass: "text-rose-600",
+    badgeLabel: "AIらしさ高め",
+    badgeClass: "border border-rose-200 bg-rose-100 text-rose-800",
+  },
+};
+
 const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
   const now = Date.now();
 
@@ -898,6 +924,11 @@ export function TextEditor() {
       ? aiCheckResult
       : null;
 
+  const aiResultPresentation = aiResultForCurrentText
+    ? AI_CONFIDENCE_PRESENTATION[aiResultForCurrentText.confidence] ??
+      AI_CONFIDENCE_PRESENTATION.low
+    : null;
+
   const hasCheckedOnSameDay =
     typeof lastAiCheckAt === "string" && lastAiCheckAt
       ? isSameJstDate(lastAiCheckAt, new Date())
@@ -1156,11 +1187,24 @@ export function TextEditor() {
             {aiCheckMessage && (
               <p className="text-xs text-emerald-800">{aiCheckMessage}</p>
             )}
-            {aiResultForCurrentText && (
+            {aiResultForCurrentText && aiResultPresentation && (
               <div className="space-y-2 rounded-md border border-emerald-200 bg-white p-3 text-xs text-emerald-900">
                 <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                  <span className="text-lg font-bold text-emerald-700">
+                  <span
+                    className={clsx(
+                      "text-lg font-bold",
+                      aiResultPresentation.scoreClass,
+                    )}
+                  >
                     {aiResultForCurrentText.score}%
+                  </span>
+                  <span
+                    className={clsx(
+                      "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold",
+                      aiResultPresentation.badgeClass,
+                    )}
+                  >
+                    {aiResultPresentation.badgeLabel}
                   </span>
                 </p>
                 <p className="text-[11px] text-emerald-800">

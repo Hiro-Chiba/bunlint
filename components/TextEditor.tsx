@@ -159,8 +159,10 @@ const createWordSegments = (value: string): HighlightSegment[] => {
   return segments;
 };
 
-const toDisplayValue = (segment: string) =>
-  segment.replace(/ /g, "\u00A0").replace(/\t/g, "\u00A0\u00A0\u00A0\u00A0");
+// ハイライト用オーバーレイでは改行位置をテキストエリアと揃える必要がある。
+// 半角スペースをノーブレークスペースに変換すると折り返しが変わってしまうため、
+// ここでは元の文字列をそのまま返して描画する。
+const toDisplayValue = (segment: string) => segment;
 
 const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
   const now = Date.now();

@@ -27,9 +27,9 @@ type TransformationControlsProps = {
 };
 
 const punctuationModeLabels: Record<PunctuationMode, string> = {
-  japanese: "和文（、。）",
-  academic: "学術（，．）",
-  western: "欧文（,.）",
+  japanese: "、。",
+  academic: "，．",
+  western: ",.",
 };
 
 const punctuationSelectOptions: Array<{
@@ -64,7 +64,7 @@ export function TransformationControls({
   const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
   const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
   const [isSampleOpen, setIsSampleOpen] = useState(false);
-  const [isIndividualOpen, setIsIndividualOpen] = useState(true);
+  const [isIndividualOpen, setIsIndividualOpen] = useState(false);
   const activePreset = writingStylePresets[writingStyle];
 
   const handleIndividualReplace = () => {

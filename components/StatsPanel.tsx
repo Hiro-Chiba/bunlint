@@ -18,8 +18,9 @@ const statsLabels: Record<keyof TextStats, string> = {
   sentences: "文数",
 };
 
-const interactiveModeByKey: Partial<Record<keyof TextStats, StatsHighlightMode>>
-  = {
+const interactiveModeByKey: Partial<
+  Record<keyof TextStats, Exclude<StatsHighlightMode, "none">>
+> = {
     words: "words",
     sentences: "sentences",
   };

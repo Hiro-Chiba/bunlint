@@ -19,7 +19,7 @@ function clearHighAccuracyCookie(response: NextResponse) {
     path: "/",
     maxAge: 0,
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
   });
 }
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     name: HIGH_ACCURACY_COOKIE_NAME,
     value: token,
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     maxAge: Math.ceil(HIGH_ACCURACY_DURATION_MS / 1000),
     path: "/",

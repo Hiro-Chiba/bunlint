@@ -26,6 +26,16 @@ function isPunctuationMode(value: unknown): value is PunctuationMode {
 
 export async function POST(request: Request) {
   let body: TransformRequestBody | null = null;
+  const contentType = request.headers.get("content-type");
+
+  if (!contentType || !/application\/json/i.test(contentType)) {
+    return NextResponse.json(
+      {
+        error: "JSON 形式のリクエストのみ受け付けています。",
+      },
+      { status: 415 },
+    );
+  }
 
   try {
     body = (await request.json()) as TransformRequestBody;

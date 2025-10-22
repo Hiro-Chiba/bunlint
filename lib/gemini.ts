@@ -75,6 +75,14 @@ export type GeminiTransformResult = {
   rawResponse?: unknown;
 };
 
+export type AiConfidenceLevel = "low" | "medium" | "high";
+
+export type AiCheckerResult = {
+  score: number;
+  confidence: AiConfidenceLevel;
+  reasoning: string;
+};
+
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite";
 const DEFAULT_API_VERSIONS = ["v1beta", "v1"] as const;
 
@@ -89,6 +97,20 @@ export class GeminiError extends Error {
     this.name = "GeminiError";
     this.status = options.status ?? 500;
   }
+}
+
+export function toUserFacingGeminiErrorMessage(error: GeminiError): string {
+  if (/GEMINI_API_KEY/.test(error.message)) {
+    return "AI変換の設定が完了していません。管理者にお問い合わせください。";
+  }
+
+  if (/Gemini/i.test(error.message)) {
+    return error.message
+      .replace(/Gemini API\s*/gi, "AI変換")
+      .replace(/Gemini/gi, "AI");
+  }
+
+  return error.message;
 }
 
 function normalizeModelName(model: string): string {
@@ -139,13 +161,13 @@ async function requestGeminiApi({
   model,
   version,
   payload,
-  punctuationMode,
+  convertOutputMode,
 }: {
   apiKey: string;
   model: string;
   version: string;
   payload: unknown;
-  punctuationMode: PunctuationMode;
+  convertOutputMode?: PunctuationMode | null;
 }): Promise<GeminiTransformResult> {
   const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent`;
 
@@ -201,7 +223,10 @@ async function requestGeminiApi({
   }
 
   return {
-    outputText: convertPunctuation(outputText, punctuationMode),
+    outputText:
+      convertOutputMode && typeof convertOutputMode === "string"
+        ? convertPunctuation(outputText, convertOutputMode)
+        : outputText,
     rawResponse: data,
   };
 }
@@ -341,13 +366,13 @@ async function executeGeminiRequest({
   model,
   apiVersions,
   payload,
-  punctuationMode,
+  convertOutputMode,
 }: {
   apiKey: string;
   model: string;
   apiVersions: string[];
   payload: unknown;
-  punctuationMode: PunctuationMode;
+  convertOutputMode?: PunctuationMode | null;
 }): Promise<GeminiTransformResult> {
   const errors: GeminiError[] = [];
 
@@ -358,7 +383,7 @@ async function executeGeminiRequest({
         model,
         version,
         payload,
-        punctuationMode,
+        convertOutputMode,
       });
     } catch (error) {
       if (error instanceof GeminiError) {
@@ -377,6 +402,189 @@ async function executeGeminiRequest({
   }
 
   throw new GeminiError("Gemini API の呼び出しに失敗しました。", { status: 500 });
+}
+
+const AI_CHECKER_PROMPT = [
+  "あなたは文章がAIによって生成された可能性を評価する監査員です。",
+  "以下の日本語テキストを分析し、AI生成らしさを0〜100の整数で推定してください。",
+  "0はほぼ人間による文章、100はほぼAIによる文章を意味します。",
+  "結果は必ず次のJSON形式のみで返してください。余計な文章や説明は含めないでください。",
+  '{"score": <0-100の整数>, "confidence": "<low|medium|high>", "reasoning": "<日本語での根拠>"}',
+  "confidenceは推定結果の確度を表します。low=AIらしさが低い、medium=判断が難しい、high=AIらしさが高いという意味で使用してください。",
+].join("\n");
+
+const DEFAULT_REASONING_BY_CONFIDENCE: Record<AiConfidenceLevel, string> = {
+  low: "AI生成らしさは低いと判断されました。",
+  medium: "AI生成らしさは中程度と判断されました。",
+  high: "AI生成らしさが高いと判断されました。",
+};
+
+type CreateAiCheckerPayloadOptions = {
+  text: string;
+  temperature: number;
+};
+
+function createAiCheckerPayload({
+  text,
+  temperature,
+}: CreateAiCheckerPayloadOptions) {
+  const sanitized = text.replace(/\r/g, "").trim();
+  const prompt = `${AI_CHECKER_PROMPT}\n\n--- テキストここから ---\n${sanitized}\n--- テキストここまで ---`;
+
+  return {
+    contents: [
+      {
+        role: "user" as const,
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature,
+      topP: 0.8,
+      topK: 32,
+    },
+  };
+}
+
+function extractJsonSnippet(text: string): string | null {
+  const trimmed = text.trim();
+  const withoutFence = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  const start = withoutFence.indexOf("{");
+  const end = withoutFence.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end <= start) {
+    return null;
+  }
+
+  return withoutFence.slice(start, end + 1);
+}
+
+function normalizeConfidenceLevel(
+  value: unknown,
+  score: number,
+): AiConfidenceLevel {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized) {
+      if (/(^|\b)(low|minor|small|weak|低|弱|小)(\b|$)/.test(normalized)) {
+        return "low";
+      }
+
+      if (/(^|\b)(medium|moderate|mid|middle|normal|平均|中|ふつう|普通)(\b|$)/.test(normalized)) {
+        return "medium";
+      }
+
+      if (/(^|\b)(high|strong|major|大|高|強)(\b|$)/.test(normalized)) {
+        return "high";
+      }
+    }
+  }
+
+  if (score >= 66) {
+    return "high";
+  }
+
+  if (score >= 34) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function sanitizeScore(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const numeric = Number.parseFloat(value.replace(/[^0-9.+-]/g, ""));
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+
+  throw new GeminiError("AIチェッカーのスコアを取得できませんでした。", {
+    status: 502,
+  });
+}
+
+export function parseAiCheckerResponse(raw: string): AiCheckerResult {
+  const snippet = extractJsonSnippet(raw);
+
+  if (!snippet) {
+    throw new GeminiError("AIチェッカーの解析結果を読み取れませんでした。", {
+      status: 502,
+    });
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(snippet);
+  } catch (error) {
+    throw new GeminiError("AIチェッカーの解析結果がJSON形式ではありませんでした。", {
+      status: 502,
+      cause: error,
+    });
+  }
+
+  const scoreCandidate =
+    parsed?.score ?? parsed?.aiScore ?? parsed?.likelihood ?? parsed?.probability;
+  const sanitizedScore = sanitizeScore(scoreCandidate);
+  const clampedScore = Math.round(Math.max(0, Math.min(100, sanitizedScore)));
+
+  const confidence = normalizeConfidenceLevel(parsed?.confidence ?? parsed?.level ?? parsed?.rating ?? parsed?.verdict, clampedScore);
+
+  const rawReasoning =
+    typeof parsed?.reasoning === "string"
+      ? parsed.reasoning
+      : typeof parsed?.analysis === "string"
+        ? parsed.analysis
+        : typeof parsed?.summary === "string"
+          ? parsed.summary
+          : "";
+
+  const reasoning = rawReasoning.trim() || DEFAULT_REASONING_BY_CONFIDENCE[confidence];
+
+  return {
+    score: clampedScore,
+    confidence,
+    reasoning,
+  };
+}
+
+type AnalyzeAiLikelihoodParams = {
+  text: string;
+  temperature?: number;
+};
+
+export async function analyzeAiLikelihoodWithGemini({
+  text,
+  temperature = 0.2,
+}: AnalyzeAiLikelihoodParams): Promise<AiCheckerResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new GeminiError("GEMINI_API_KEY が設定されていません。", {
+      status: 500,
+    });
+  }
+
+  const model = resolveGeminiModel();
+  const apiVersions = resolveGeminiApiVersions();
+  const payload = createAiCheckerPayload({ text, temperature });
+
+  const result = await executeGeminiRequest({
+    apiKey,
+    model,
+    apiVersions,
+    payload,
+    convertOutputMode: null,
+  });
+
+  return parseAiCheckerResponse(result.outputText);
 }
 
 export async function transformTextWithGemini({
@@ -432,7 +640,7 @@ export async function transformTextWithGemini({
       model,
       apiVersions,
       payload,
-      punctuationMode,
+      convertOutputMode: punctuationMode,
     });
 
     const normalizedResult: GeminiTransformResult = {

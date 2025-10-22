@@ -28,7 +28,7 @@ const MAX_DEARU_ATTEMPTS = 4;
 export const writingStylePresets: Record<WritingStyle, StylePreset> = {
   dearu: {
     label: "だ・である調",
-    description: "論文やレポート向けの硬い文体に整えます。",
+    description: "論文やレポートに適した、格調高い文体に整えます。",
     toneInstruction:
       "文体は常に『だ・である調』に統一し、丁寧語やですます調を使用しないでください。",
     strictToneInstruction:
@@ -36,16 +36,16 @@ export const writingStylePresets: Record<WritingStyle, StylePreset> = {
   },
   desumasu: {
     label: "です・ます調",
-    description: "ビジネス文章や丁寧な説明文を想定したスタイル。",
+    description: "ビジネス文書や丁寧な説明文を想定した、読みやすい文体です。",
     toneInstruction:
       "文体は常に『です・ます調』に統一し、終止形は「です」「ます」で終わるようにしてください。",
     strictToneInstruction:
       "常体（だ・である 等）の語尾が残らないように確認し、すべての文末を「です」「ます」などの丁寧語で終わらせてください。",
   },
   humanize: {
-    label: "人間らしい構成最適化",
+    label: "人間らしい構成",
     description:
-      "段落構成や接続詞を整えて、自然で読みやすい文章にブラッシュアップします。",
+      "段落の構成や接続詞を整えることで、自然で読みやすい文章にブラッシュアップします。",
     toneInstruction:
       "文体は自然で温度感のある標準的な日本語とし、機械的な言い回しや不必要な反復を避けてください。",
     additionalDirectives: [
@@ -83,7 +83,7 @@ export class GeminiError extends Error {
 
   constructor(
     message: string,
-    options: { cause?: unknown; status?: number } = {},
+    options: { cause?: unknown; status?: number } = {}
   ) {
     super(message, { cause: options.cause });
     this.name = "GeminiError";
@@ -92,7 +92,10 @@ export class GeminiError extends Error {
 }
 
 function normalizeModelName(model: string): string {
-  return model.trim().replace(/^models\//, "").replace(/\s+/g, "-");
+  return model
+    .trim()
+    .replace(/^models\//, "")
+    .replace(/\s+/g, "-");
 }
 
 function resolveGeminiModel(): string {
@@ -127,7 +130,10 @@ function shouldRetryWithNextVersion(error: GeminiError): boolean {
     return true;
   }
 
-  if (error.status === 400 && /not found for api version/i.test(error.message)) {
+  if (
+    error.status === 400 &&
+    /not found for api version/i.test(error.message)
+  ) {
     return true;
   }
 
@@ -174,10 +180,13 @@ async function requestGeminiApi({
       }
     }
 
-    throw new GeminiError(`${errorMessage} (model: ${model}, version: ${version})`, {
-      status: response.status,
-      cause: parsedBody,
-    });
+    throw new GeminiError(
+      `${errorMessage} (model: ${model}, version: ${version})`,
+      {
+        status: response.status,
+        cause: parsedBody,
+      }
+    );
   }
 
   let data: any = null;
@@ -228,7 +237,8 @@ function buildPrompt({
       punctuationInstruction = "句読点は必ず「，」「．」を使用してください。";
       break;
     case "western":
-      punctuationInstruction = "句読点は必ず半角の「,」「.」を使用してください。";
+      punctuationInstruction =
+        "句読点は必ず半角の「,」「.」を使用してください。";
       break;
     default:
       punctuationInstruction = "句読点は必ず「、」「。」を使用してください。";
@@ -239,7 +249,11 @@ function buildPrompt({
     "- 入力文を大幅に書き換えず、意味や事実関係を保ったまま語尾や表現を整えてください。",
   ];
 
-  if (strictMode && validationDirective && validationDirective.trim().length > 0) {
+  if (
+    strictMode &&
+    validationDirective &&
+    validationDirective.trim().length > 0
+  ) {
     instructions.push(`- ${validationDirective.trim()}`);
   }
 
@@ -259,22 +273,22 @@ function buildPrompt({
 
   instructions.push(`- ${punctuationInstruction}`);
   instructions.push(
-    "- 変換後のテキストのみを出力し、説明文や補足は書かないでください。",
+    "- 変換後のテキストのみを出力し、説明文や補足は書かないでください。"
   );
   instructions.push(
-    "- あいさつや了承の返答など、変換結果と無関係な文章を冒頭や末尾に付け加えないでください。",
+    "- あいさつや了承の返答など、変換結果と無関係な文章を冒頭や末尾に付け加えないでください。"
   );
   instructions.push(
-    "- ヘッダー、箇条書き、引用、コードブロックなどの装飾を使わず、本文のみをそのまま出力してください。",
+    "- ヘッダー、箇条書き、引用、コードブロックなどの装飾を使わず、本文のみをそのまま出力してください。"
   );
 
   if (strictMode) {
     instructions.push(
-      "- 出力前に文体の揺れが残っていないか自己チェックし、丁寧語と常体が混在しないようにしてください。",
+      "- 出力前に文体の揺れが残っていないか自己チェックし、丁寧語と常体が混在しないようにしてください。"
     );
     for (const reinforcementInstruction of getStrictReinforcementInstructions(
       writingStyle,
-      enforcementLevel,
+      enforcementLevel
     )) {
       instructions.push(reinforcementInstruction);
     }
@@ -291,7 +305,7 @@ ${inputText.trim()}`;
 
 function getStrictReinforcementInstructions(
   writingStyle: WritingStyle,
-  enforcementLevel: StrictEnforcementLevel,
+  enforcementLevel: StrictEnforcementLevel
 ): string[] {
   if (writingStyle !== "dearu") {
     return [];
@@ -301,16 +315,16 @@ function getStrictReinforcementInstructions(
 
   if (enforcementLevel === "reinforced" || enforcementLevel === "maximum") {
     instructions.push(
-      "- 例: 「この結果です。」→「この結果である。」、「確認します。」→「確認する。」のように丁寧語を常体に言い換えてください。",
+      "- 例: 「この結果です。」→「この結果である。」、「確認します。」→「確認する。」のように丁寧語を常体に言い換えてください。"
     );
   }
 
   if (enforcementLevel === "maximum") {
     instructions.push(
-      "- 各文を声に出すつもりで確認し、丁寧語（です・ます・でした など）が残っていれば必ず常体に修正してから出力してください。",
+      "- 各文を声に出すつもりで確認し、丁寧語（です・ます・でした など）が残っていれば必ず常体に修正してから出力してください。"
     );
     instructions.push(
-      "- 最終出力の直前に丁寧語が1つでも残っていないか再点検し、問題があれば修正が完了するまで出力しないでください。",
+      "- 最終出力の直前に丁寧語が1つでも残っていないか再点検し、問題があれば修正が完了するまで出力しないでください。"
     );
   }
 
@@ -376,7 +390,9 @@ async function executeGeminiRequest({
     throw errors[errors.length - 1];
   }
 
-  throw new GeminiError("Gemini API の呼び出しに失敗しました。", { status: 500 });
+  throw new GeminiError("Gemini API の呼び出しに失敗しました。", {
+    status: 500,
+  });
 }
 
 export async function transformTextWithGemini({
@@ -399,7 +415,11 @@ export async function transformTextWithGemini({
   const attemptConfigs: AttemptConfig[] =
     writingStyle === "dearu"
       ? [
-          { strictMode: false, temperature: baseTemperature, enforcementLevel: "standard" },
+          {
+            strictMode: false,
+            temperature: baseTemperature,
+            enforcementLevel: "standard",
+          },
           {
             strictMode: true,
             temperature: Math.min(baseTemperature, 0.25),
@@ -407,14 +427,22 @@ export async function transformTextWithGemini({
           },
         ]
       : [
-          { strictMode: false, temperature: baseTemperature, enforcementLevel: "standard" },
+          {
+            strictMode: false,
+            temperature: baseTemperature,
+            enforcementLevel: "standard",
+          },
         ];
 
   let validationDirective: string | null = null;
   let validationReason: string | null = null;
   let lastOffendingSentences: string[] = [];
 
-  for (let attemptIndex = 0; attemptIndex < attemptConfigs.length; attemptIndex += 1) {
+  for (
+    let attemptIndex = 0;
+    attemptIndex < attemptConfigs.length;
+    attemptIndex += 1
+  ) {
     const attempt = attemptConfigs[attemptIndex];
 
     const payload = createGeminiPayload({
@@ -442,7 +470,7 @@ export async function transformTextWithGemini({
 
     const validation = validateWritingStyleCompliance(
       normalizedResult.outputText,
-      writingStyle,
+      writingStyle
     );
 
     if (validation.ok) {
@@ -477,7 +505,10 @@ export async function transformTextWithGemini({
   }
 
   if (validationReason) {
-    const errorOptions: { status: number; cause?: { offendingSentences: string[] } } = {
+    const errorOptions: {
+      status: number;
+      cause?: { offendingSentences: string[] };
+    } = {
       status: 502,
     };
 
@@ -540,7 +571,8 @@ const POLITE_ENDINGS = [
   "ございますか",
 ];
 
-const TRAILING_SYMBOLS_PATTERN = /[\s\u3000「」『』（）【】［］〈〉《》｛｝]+$/gu;
+const TRAILING_SYMBOLS_PATTERN =
+  /[\s\u3000「」『』（）【】［］〈〉《》｛｝]+$/gu;
 const SENTENCE_DELIMITER_PATTERN = /[^。．\.！？\?]+[。．\.！？\?]?/gu;
 const MARKDOWN_CODE_FENCE_START = /^```[^\n]*\n/;
 const MARKDOWN_CODE_FENCE_END = /\n```[ \t]*$/;
@@ -652,7 +684,7 @@ type StyleValidationResult =
 
 export function validateWritingStyleCompliance(
   text: string,
-  writingStyle: WritingStyle,
+  writingStyle: WritingStyle
 ): StyleValidationResult {
   if (writingStyle !== "dearu") {
     return { ok: true };
@@ -666,7 +698,7 @@ export function validateWritingStyleCompliance(
   }
 
   const normalizedViolations = violations.map((sentence) =>
-    normalizeSentenceForDirective(sentence),
+    normalizeSentenceForDirective(sentence)
   );
 
   const sampleSource = normalizedViolations[0] ?? violations[0];
@@ -702,7 +734,7 @@ function stripMarkdownCodeFences(text: string): string {
 
 function removeLeadingAcknowledgementSentences(
   text: string,
-  writingStyle: WritingStyle,
+  writingStyle: WritingStyle
 ): string {
   if (writingStyle !== "dearu") {
     return text.trim();
@@ -718,7 +750,7 @@ function removeLeadingAcknowledgementSentences(
     }
 
     const hasKeyword = ACKNOWLEDGEMENT_KEYWORDS.some((keyword) =>
-      trimmedSentence.includes(keyword),
+      trimmedSentence.includes(keyword)
     );
 
     if (!hasKeyword) {
@@ -742,7 +774,7 @@ function removeLeadingAcknowledgementSentences(
     remainder = remainder.trimStart();
     const pattern = new RegExp(
       `^${escapeForRegExp(sentence)}[\s\u3000「」『』（）()【】［］〈〉《》｛｝]*`,
-      "u",
+      "u"
     );
     const match = remainder.match(pattern);
     if (!match) {
@@ -757,7 +789,7 @@ function removeLeadingAcknowledgementSentences(
 
 export function normalizeGeminiOutput(
   text: string,
-  writingStyle: WritingStyle,
+  writingStyle: WritingStyle
 ): string {
   if (!text) {
     return "";
@@ -774,4 +806,3 @@ export function normalizeGeminiOutput(
 
   return normalized.trim();
 }
-

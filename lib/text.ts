@@ -35,7 +35,15 @@ const japaneseWordPattern =
 
 const hiraganaOnlyPattern = /^\p{Script=Hiragana}+$/u;
 
-const ALWAYS_DETACH_PARTICLES = new Set(["は", "が", "を", "に", "へ", "で", "と"]);
+const ALWAYS_DETACH_PARTICLES = new Set([
+  "は",
+  "が",
+  "を",
+  "に",
+  "へ",
+  "で",
+  "と",
+]);
 
 const PARTICLE_LIST = [
   "なんて",
@@ -394,13 +402,29 @@ function splitGraphemes(text: string): string[] {
   );
 }
 
-type SegmentKind = "kanji" | "hiragana" | "katakana" | "latin" | "number" | "other";
+type SegmentKind =
+  | "kanji"
+  | "hiragana"
+  | "katakana"
+  | "latin"
+  | "number"
+  | "other";
 
 const katakanaPattern = /^(?:\p{Script=Katakana}|ー)+$/u;
 const latinPattern = /^\p{Letter}+$/u;
 const numberPattern = /^\p{Number}+$/u;
 
-const hiraganaParticleCandidates = new Set(["か", "も", "の", "や", "ね", "よ", "ぞ", "さ", "わ"]);
+const hiraganaParticleCandidates = new Set([
+  "か",
+  "も",
+  "の",
+  "や",
+  "ね",
+  "よ",
+  "ぞ",
+  "さ",
+  "わ",
+]);
 
 function isJapaneseWord(value: string): boolean {
   return japaneseWordPattern.test(value);
@@ -482,7 +506,10 @@ function splitByScript(value: string): string[] {
       continue;
     }
 
-    if (bufferType !== type && !(bufferType === "kanji" && type === "hiragana")) {
+    if (
+      bufferType !== type &&
+      !(bufferType === "kanji" && type === "hiragana")
+    ) {
       segments.push(buffer);
       buffer = char;
       bufferType = type;
@@ -804,8 +831,7 @@ function collectWordsUsingSegmenter(text: string): SegmentEntry[] {
     const value = rawValue.slice(startOffset, endOffset);
     const trimmedStart = segment.index + startOffset;
     const trimmedEnd = segment.index + endOffset;
-    const breakBefore =
-      hasPreviousWord && trimmedStart > previousEnd;
+    const breakBefore = hasPreviousWord && trimmedStart > previousEnd;
 
     entries.push({ value, breakBefore });
     hasPreviousWord = true;
@@ -864,7 +890,10 @@ function shouldTreatParticleAsContent(
   return false;
 }
 
-function isAuxiliaryToken(token: string, previousToken: string | null): boolean {
+function isAuxiliaryToken(
+  token: string,
+  previousToken: string | null,
+): boolean {
   if (FUNCTION_WORD_ALLOW_LIST.has(token)) {
     return false;
   }

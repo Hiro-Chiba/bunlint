@@ -237,7 +237,9 @@ export async function POST(request: Request) {
 
   response.cookies.set({
     name: DAILY_LIMIT_COOKIE,
-    value: usageRecord ? encodeURIComponent(JSON.stringify(usageRecord)) : checkedAt,
+    value: usageRecord
+      ? encodeURIComponent(JSON.stringify(usageRecord))
+      : checkedAt,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

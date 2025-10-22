@@ -15,7 +15,10 @@ export class NextResponse extends Response {
   constructor(body?: BodyInit | null, init?: ResponseInit) {
     super(body, init);
     this.cookies = {
-      set: (nameOrOptions: string | CookieOptions, valueOrOptions?: string | CookieOptions) => {
+      set: (
+        nameOrOptions: string | CookieOptions,
+        valueOrOptions?: string | CookieOptions,
+      ) => {
         let name: string | undefined;
         let options: CookieOptions = {};
 
@@ -27,7 +30,9 @@ export class NextResponse extends Response {
             options = { ...valueOrOptions };
           }
         } else if (nameOrOptions && typeof nameOrOptions === "object") {
-          const candidate = { ...nameOrOptions } as CookieOptions & { name?: unknown };
+          const candidate = { ...nameOrOptions } as CookieOptions & {
+            name?: unknown;
+          };
           if (typeof candidate.name === "string") {
             name = candidate.name;
           }
@@ -71,7 +76,9 @@ export class NextResponse extends Response {
 
         if (options.sameSite) {
           const valueLower = String(options.sameSite).toLowerCase();
-          parts.push(`SameSite=${valueLower.charAt(0).toUpperCase()}${valueLower.slice(1)}`);
+          parts.push(
+            `SameSite=${valueLower.charAt(0).toUpperCase()}${valueLower.slice(1)}`,
+          );
         }
 
         this.headers.append("set-cookie", parts.join("; "));

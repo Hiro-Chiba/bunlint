@@ -12,14 +12,14 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "\"Noto Sans JP\"",
-          "\"Hiragino Sans\"",
-          "\"Hiragino Kaku Gothic ProN\"",
-          "\"Hiragino Kaku Gothic Pro\"",
-          "\"Yu Gothic\"",
-          "\"Yu Gothic UI\"",
-          "\"YuGothic\"",
-          "\"Meiryo\"",
+          '"Noto Sans JP"',
+          '"Hiragino Sans"',
+          '"Hiragino Kaku Gothic ProN"',
+          '"Hiragino Kaku Gothic Pro"',
+          '"Yu Gothic"',
+          '"Yu Gothic UI"',
+          '"YuGothic"',
+          '"Meiryo"',
           ...defaultTheme.fontFamily.sans,
         ],
       },

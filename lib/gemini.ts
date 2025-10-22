@@ -117,7 +117,10 @@ export const writingStyleSelectGroups: Array<{
 ];
 
 export function isWritingStyle(value: unknown): value is WritingStyle {
-  return typeof value === "string" && WRITING_STYLE_VALUES.includes(value as WritingStyle);
+  return (
+    typeof value === "string" &&
+    WRITING_STYLE_VALUES.includes(value as WritingStyle)
+  );
 }
 
 export function normalizeWritingStyle(value: unknown): WritingStyle | null {
@@ -182,7 +185,7 @@ export class GeminiError extends Error {
 
   constructor(
     message: string,
-    options: { cause?: unknown; status?: number } = {}
+    options: { cause?: unknown; status?: number } = {},
   ) {
     super(message, { cause: options.cause });
     this.name = "GeminiError";
@@ -298,7 +301,7 @@ async function requestGeminiApi({
       {
         status: response.status,
         cause: parsedBody,
-      }
+      },
     );
   }
 
@@ -389,22 +392,22 @@ function buildPrompt({
 
   instructions.push(`- ${punctuationInstruction}`);
   instructions.push(
-    "- 変換後のテキストのみを出力し、説明文や補足は書かないでください。"
+    "- 変換後のテキストのみを出力し、説明文や補足は書かないでください。",
   );
   instructions.push(
-    "- あいさつや了承の返答など、変換結果と無関係な文章を冒頭や末尾に付け加えないでください。"
+    "- あいさつや了承の返答など、変換結果と無関係な文章を冒頭や末尾に付け加えないでください。",
   );
   instructions.push(
-    "- ヘッダー、箇条書き、引用、コードブロックなどの装飾を使わず、本文のみをそのまま出力してください。"
+    "- ヘッダー、箇条書き、引用、コードブロックなどの装飾を使わず、本文のみをそのまま出力してください。",
   );
 
   if (strictMode) {
     instructions.push(
-      "- 出力前に文体の揺れが残っていないか自己チェックし、丁寧語と常体が混在しないようにしてください。"
+      "- 出力前に文体の揺れが残っていないか自己チェックし、丁寧語と常体が混在しないようにしてください。",
     );
     for (const reinforcementInstruction of getStrictReinforcementInstructions(
       writingStyle,
-      enforcementLevel
+      enforcementLevel,
     )) {
       instructions.push(reinforcementInstruction);
     }
@@ -421,7 +424,7 @@ ${inputText.trim()}`;
 
 function getStrictReinforcementInstructions(
   writingStyle: WritingStyle,
-  enforcementLevel: StrictEnforcementLevel
+  enforcementLevel: StrictEnforcementLevel,
 ): string[] {
   if (!isDearuStyle(writingStyle)) {
     return [];
@@ -431,16 +434,16 @@ function getStrictReinforcementInstructions(
 
   if (enforcementLevel === "reinforced" || enforcementLevel === "maximum") {
     instructions.push(
-      "- 例: 「この結果です。」→「この結果である。」、「確認します。」→「確認する。」のように丁寧語を常体に言い換えてください。"
+      "- 例: 「この結果です。」→「この結果である。」、「確認します。」→「確認する。」のように丁寧語を常体に言い換えてください。",
     );
   }
 
   if (enforcementLevel === "maximum") {
     instructions.push(
-      "- 各文を声に出すつもりで確認し、丁寧語（です・ます・でした など）が残っていれば必ず常体に修正してから出力してください。"
+      "- 各文を声に出すつもりで確認し、丁寧語（です・ます・でした など）が残っていれば必ず常体に修正してから出力してください。",
     );
     instructions.push(
-      "- 最終出力の直前に丁寧語が1つでも残っていないか再点検し、問題があれば修正が完了するまで出力しないでください。"
+      "- 最終出力の直前に丁寧語が1つでも残っていないか再点検し、問題があれば修正が完了するまで出力しないでください。",
     );
   }
 
@@ -581,7 +584,11 @@ function normalizeConfidenceLevel(
         return "low";
       }
 
-      if (/(^|\b)(medium|moderate|mid|middle|normal|平均|中|ふつう|普通)(\b|$)/.test(normalized)) {
+      if (
+        /(^|\b)(medium|moderate|mid|middle|normal|平均|中|ふつう|普通)(\b|$)/.test(
+          normalized,
+        )
+      ) {
         return "medium";
       }
 
@@ -632,18 +639,27 @@ export function parseAiCheckerResponse(raw: string): AiCheckerResult {
   try {
     parsed = JSON.parse(snippet);
   } catch (error) {
-    throw new GeminiError("AIチェッカーの解析結果がJSON形式ではありませんでした。", {
-      status: 502,
-      cause: error,
-    });
+    throw new GeminiError(
+      "AIチェッカーの解析結果がJSON形式ではありませんでした。",
+      {
+        status: 502,
+        cause: error,
+      },
+    );
   }
 
   const scoreCandidate =
-    parsed?.score ?? parsed?.aiScore ?? parsed?.likelihood ?? parsed?.probability;
+    parsed?.score ??
+    parsed?.aiScore ??
+    parsed?.likelihood ??
+    parsed?.probability;
   const sanitizedScore = sanitizeScore(scoreCandidate);
   const clampedScore = Math.round(Math.max(0, Math.min(100, sanitizedScore)));
 
-  const confidence = normalizeConfidenceLevel(parsed?.confidence ?? parsed?.level ?? parsed?.rating ?? parsed?.verdict, clampedScore);
+  const confidence = normalizeConfidenceLevel(
+    parsed?.confidence ?? parsed?.level ?? parsed?.rating ?? parsed?.verdict,
+    clampedScore,
+  );
 
   const rawReasoning =
     typeof parsed?.reasoning === "string"
@@ -654,7 +670,8 @@ export function parseAiCheckerResponse(raw: string): AiCheckerResult {
           ? parsed.summary
           : "";
 
-  const reasoning = rawReasoning.trim() || DEFAULT_REASONING_BY_CONFIDENCE[confidence];
+  const reasoning =
+    rawReasoning.trim() || DEFAULT_REASONING_BY_CONFIDENCE[confidence];
 
   return {
     score: clampedScore,
@@ -711,27 +728,26 @@ export async function transformTextWithGemini({
   const apiVersions = resolveGeminiApiVersions();
 
   const baseTemperature = temperature;
-  const attemptConfigs: AttemptConfig[] =
-    isDearuStyle(writingStyle)
-      ? [
-          {
-            strictMode: false,
-            temperature: baseTemperature,
-            enforcementLevel: "standard",
-          },
-          {
-            strictMode: true,
-            temperature: Math.min(baseTemperature, 0.25),
-            enforcementLevel: "standard",
-          },
-        ]
-      : [
-          {
-            strictMode: false,
-            temperature: baseTemperature,
-            enforcementLevel: "standard",
-          },
-        ];
+  const attemptConfigs: AttemptConfig[] = isDearuStyle(writingStyle)
+    ? [
+        {
+          strictMode: false,
+          temperature: baseTemperature,
+          enforcementLevel: "standard",
+        },
+        {
+          strictMode: true,
+          temperature: Math.min(baseTemperature, 0.25),
+          enforcementLevel: "standard",
+        },
+      ]
+    : [
+        {
+          strictMode: false,
+          temperature: baseTemperature,
+          enforcementLevel: "standard",
+        },
+      ];
 
   let validationDirective: string | null = null;
   let validationReason: string | null = null;
@@ -769,7 +785,7 @@ export async function transformTextWithGemini({
 
     const validation = validateWritingStyleCompliance(
       normalizedResult.outputText,
-      writingStyle
+      writingStyle,
     );
 
     if (validation.ok) {
@@ -983,7 +999,7 @@ type StyleValidationResult =
 
 export function validateWritingStyleCompliance(
   text: string,
-  writingStyle: WritingStyle
+  writingStyle: WritingStyle,
 ): StyleValidationResult {
   if (!isDearuStyle(writingStyle)) {
     return { ok: true };
@@ -997,7 +1013,7 @@ export function validateWritingStyleCompliance(
   }
 
   const normalizedViolations = violations.map((sentence) =>
-    normalizeSentenceForDirective(sentence)
+    normalizeSentenceForDirective(sentence),
   );
 
   const sampleSource = normalizedViolations[0] ?? violations[0];
@@ -1033,7 +1049,7 @@ function stripMarkdownCodeFences(text: string): string {
 
 function removeLeadingAcknowledgementSentences(
   text: string,
-  writingStyle: WritingStyle
+  writingStyle: WritingStyle,
 ): string {
   if (!isDearuStyle(writingStyle)) {
     return text.trim();
@@ -1049,7 +1065,7 @@ function removeLeadingAcknowledgementSentences(
     }
 
     const hasKeyword = ACKNOWLEDGEMENT_KEYWORDS.some((keyword) =>
-      trimmedSentence.includes(keyword)
+      trimmedSentence.includes(keyword),
     );
 
     if (!hasKeyword) {
@@ -1073,7 +1089,7 @@ function removeLeadingAcknowledgementSentences(
     remainder = remainder.trimStart();
     const pattern = new RegExp(
       `^${escapeForRegExp(sentence)}[\s\u3000「」『』（）()【】［］〈〉《》｛｝]*`,
-      "u"
+      "u",
     );
     const match = remainder.match(pattern);
     if (!match) {
@@ -1088,7 +1104,7 @@ function removeLeadingAcknowledgementSentences(
 
 export function normalizeGeminiOutput(
   text: string,
-  writingStyle: WritingStyle
+  writingStyle: WritingStyle,
 ): string {
   if (!text) {
     return "";

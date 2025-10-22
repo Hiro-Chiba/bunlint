@@ -9,10 +9,8 @@ import {
   writingStylePresets,
 } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
-import {
-  HIGH_ACCURACY_COOKIE_NAME,
-  verifyHighAccuracyToken,
-} from "@/lib/high-accuracy";
+import { HIGH_ACCURACY_COOKIE_NAME } from "@/lib/high-accuracy";
+import { verifyHighAccuracyToken } from "@/lib/high-accuracy.server";
 
 const MAX_INPUT_LENGTH = 4000;
 

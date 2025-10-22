@@ -4,9 +4,11 @@ import { NextResponse } from "next/server";
 import {
   HIGH_ACCURACY_COOKIE_NAME,
   HIGH_ACCURACY_DURATION_MS,
+} from "@/lib/high-accuracy";
+import {
   createHighAccuracyToken,
   verifyHighAccuracyToken,
-} from "@/lib/high-accuracy";
+} from "@/lib/high-accuracy.server";
 
 const SUCCESS_STATUS = 200;
 

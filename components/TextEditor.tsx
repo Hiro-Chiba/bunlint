@@ -125,38 +125,39 @@ type SentenceSegment = {
   type: SentenceSegmentType;
 };
 
-const SENTENCE_END_CHARACTERS = new Set(["。", "．", ".", "!", "?", "！", "？"]);
+const SENTENCE_TERMINATORS = ["。", "．", ".", "!", "?", "！", "？"] as const;
+
+const escapedSentenceTerminators = SENTENCE_TERMINATORS.map((char) =>
+  char.replace(/[\\^$*+?.()|[\]{}-]/g, "\\$&"),
+).join("");
+
+const sentenceBoundaryPattern = new RegExp(
+  `[^${escapedSentenceTerminators}]+(?:[${escapedSentenceTerminators}]+|$)`,
+  "gu",
+);
 
 const createSentenceSegments = (value: string): SentenceSegment[] => {
-  const segments: SentenceSegment[] = [];
-
-  let buffer = "";
-  let currentType: SentenceSegmentType | null = null;
-
-  for (const char of value) {
-    const isWhitespace = /\s/.test(char);
-    const charType: SentenceSegmentType = isWhitespace ? "separator" : "sentence";
-
-    if (currentType === null) {
-      buffer = char;
-      currentType = charType;
-    } else if (currentType === charType) {
-      buffer += char;
-    } else {
-      segments.push({ value: buffer, type: currentType });
-      buffer = char;
-      currentType = charType;
-    }
-
-    if (charType === "sentence" && SENTENCE_END_CHARACTERS.has(char)) {
-      segments.push({ value: buffer, type: "sentence" });
-      buffer = "";
-      currentType = null;
-    }
+  if (value.length === 0) {
+    return [];
   }
 
-  if (buffer) {
-    segments.push({ value: buffer, type: currentType ?? "separator" });
+  const segments: SentenceSegment[] = [];
+  let lastIndex = 0;
+
+  for (const match of value.matchAll(sentenceBoundaryPattern)) {
+    const matchValue = match[0];
+    const startIndex = match.index ?? 0;
+
+    if (startIndex > lastIndex) {
+      segments.push({ value: value.slice(lastIndex, startIndex), type: "separator" });
+    }
+
+    segments.push({ value: matchValue, type: "sentence" });
+    lastIndex = startIndex + matchValue.length;
+  }
+
+  if (lastIndex < value.length) {
+    segments.push({ value: value.slice(lastIndex), type: "separator" });
   }
 
   return segments;

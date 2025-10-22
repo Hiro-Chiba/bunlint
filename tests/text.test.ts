@@ -31,7 +31,20 @@ describe("countWords", () => {
 
   test("日本語の文章からも概算の単語数を求める", () => {
     const text = "単語数が少ない問題を修正してください";
-    assert.strictEqual(countWords(text), 11);
+    assert.strictEqual(countWords(text), 7);
+  });
+
+  test("助詞の境界で語を識別する", () => {
+    const text = "私は本を読みます";
+    assert.strictEqual(countWords(text), 6);
+  });
+
+  test("ひらがなだけの語は不必要に分割しない", () => {
+    assert.strictEqual(countWords("たべもの"), 1);
+  });
+
+  test("かな書きの名詞と助詞の組み合わせも認識する", () => {
+    assert.strictEqual(countWords("おちゃを飲む"), 3);
   });
 
   test("句読点や改行が混在していても単語数を求める", () => {

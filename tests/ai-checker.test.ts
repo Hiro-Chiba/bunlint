@@ -75,7 +75,7 @@ describe("/api/ai-check", () => {
         { status: 200 },
       );
 
-  test("同日の2回目は429を返す", { concurrency: false }, async () => {
+  test("同日の6回目は429を返す", { concurrency: false }, async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const originalFetch = globalThis.fetch;
     globalThis.fetch = createFetchStub({
@@ -85,41 +85,54 @@ describe("/api/ai-check", () => {
     });
 
     try {
-      const request = new Request("http://localhost/api/ai-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputText: "テスト" }),
-      });
+      let cookieHeader: string | null = null;
 
-      const firstResponse = await aiCheckRoute(request.clone());
-      assert.equal(firstResponse.status, 200);
-      const cookieHeader = firstResponse.headers.get("set-cookie");
-      assert.ok(cookieHeader && cookieHeader.includes("ai-check-last-jst"));
-      const body = (await firstResponse.json()) as GeminiModule.AiCheckerResult & {
-        checkedAt: string;
-      };
-      assert.equal(body.score, 33);
-      assert.equal(body.confidence, "low");
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        const request = new Request("http://localhost/api/ai-check", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(cookieHeader ? { cookie: cookieHeader.split(";")[0] ?? "" } : {}),
+          },
+          body: JSON.stringify({ inputText: "テスト" }),
+        });
 
-      const cookieValue = cookieHeader.split(";")[0]?.split("=")[1] ?? "";
+        const response = await aiCheckRoute(request);
+        assert.equal(response.status, 200);
+        const setCookie = response.headers.get("set-cookie");
+        assert.ok(setCookie && setCookie.includes("ai-check-last-jst"));
+        cookieHeader = setCookie;
+        const body = (await response.json()) as GeminiModule.AiCheckerResult & {
+          checkedAt: string;
+          dailyCheckCount: number;
+        };
+        assert.equal(body.score, 33);
+        assert.equal(body.confidence, "low");
+        assert.equal(body.dailyCheckCount, attempt);
+      }
 
-      const secondRequest = new Request("http://localhost/api/ai-check", {
+      const cookieValue = cookieHeader?.split(";")[0] ?? "";
+      assert.ok(cookieValue);
+
+      const sixthRequest = new Request("http://localhost/api/ai-check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          cookie: `ai-check-last-jst=${cookieValue}`,
+          cookie: cookieValue,
         },
         body: JSON.stringify({ inputText: "テスト" }),
       });
 
-      const secondResponse = await aiCheckRoute(secondRequest);
-      assert.equal(secondResponse.status, 429);
-      const secondBody = (await secondResponse.json()) as {
+      const sixthResponse = await aiCheckRoute(sixthRequest);
+      assert.equal(sixthResponse.status, 429);
+      const sixthBody = (await sixthResponse.json()) as {
         error: string;
         lastCheckedAt?: string;
+        dailyCheckCount?: number;
       };
-      assert.match(secondBody.error, /1日1回/);
-      assert.ok(typeof secondBody.lastCheckedAt === "string");
+      assert.match(sixthBody.error, /1日5回/);
+      assert.ok(typeof sixthBody.lastCheckedAt === "string");
+      assert.equal(sixthBody.dailyCheckCount, 5);
     } finally {
       globalThis.fetch = originalFetch;
       process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;

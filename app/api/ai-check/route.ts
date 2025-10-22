@@ -6,12 +6,19 @@ import {
   toUserFacingGeminiErrorMessage,
   type AiCheckerResult,
 } from "@/lib/gemini";
-import { getNextJstMidnight, isSameJstDate, toJstDateString } from "@/lib/jst";
+import { getNextJstMidnight, toJstDateString } from "@/lib/jst";
 
 const MAX_INPUT_LENGTH = 4000;
 const DAILY_LIMIT_COOKIE = "ai-check-last-jst";
+const DAILY_LIMIT_MAX = 5;
 const DAILY_LIMIT_MESSAGE =
-  "AIチェッカーは日本時間で1日1回までご利用いただけます。";
+  "AIチェッカーは日本時間で1日5回までご利用いただけます。";
+
+type AiCheckUsageCookieValue = {
+  date: string;
+  count: number;
+  lastCheckedAt: string;
+};
 
 type AiCheckRequestBody = {
   inputText?: unknown;
@@ -19,11 +26,13 @@ type AiCheckRequestBody = {
 
 type AiCheckSuccessPayload = AiCheckerResult & {
   checkedAt: string;
+  dailyCheckCount: number;
 };
 
 type AiCheckErrorPayload = {
   error: string;
   lastCheckedAt?: string;
+  dailyCheckCount?: number;
 };
 
 function parseRequestBody(raw: Request): Promise<AiCheckRequestBody | null> {
@@ -66,11 +75,82 @@ function parseCookies(cookieHeader: string | null): Record<string, string> {
   }, {});
 }
 
-function createLimitExceededResponse(lastCheckedAt: string | null) {
+function parseUsageCookie(
+  value: string | undefined,
+): AiCheckUsageCookieValue | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as Partial<AiCheckUsageCookieValue>;
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("invalid cookie");
+    }
+
+    const lastCheckedAt =
+      typeof parsed.lastCheckedAt === "string" ? parsed.lastCheckedAt : null;
+    const count =
+      typeof parsed.count === "number" && Number.isFinite(parsed.count)
+        ? Math.max(0, Math.floor(parsed.count))
+        : 0;
+    const dateCandidate =
+      typeof parsed.date === "string" && parsed.date
+        ? parsed.date
+        : lastCheckedAt;
+
+    if (!lastCheckedAt || !dateCandidate) {
+      throw new Error("missing fields");
+    }
+
+    const lastCheckedDate = new Date(lastCheckedAt);
+    if (Number.isNaN(lastCheckedDate.getTime())) {
+      throw new Error("invalid timestamp");
+    }
+
+    const jstDate = toJstDateString(dateCandidate);
+    if (!jstDate) {
+      throw new Error("invalid date");
+    }
+
+    return {
+      date: jstDate,
+      count,
+      lastCheckedAt: lastCheckedDate.toISOString(),
+    };
+  } catch {
+    const legacyDate = new Date(trimmed);
+    if (Number.isNaN(legacyDate.getTime())) {
+      return null;
+    }
+
+    const jstDate = toJstDateString(legacyDate);
+    if (!jstDate) {
+      return null;
+    }
+
+    return {
+      date: jstDate,
+      count: 1,
+      lastCheckedAt: legacyDate.toISOString(),
+    };
+  }
+}
+
+function createLimitExceededResponse(usage: AiCheckUsageCookieValue | null) {
   return NextResponse.json<AiCheckErrorPayload>(
     {
       error: DAILY_LIMIT_MESSAGE,
-      lastCheckedAt: lastCheckedAt ?? undefined,
+      lastCheckedAt: usage?.lastCheckedAt ?? undefined,
+      dailyCheckCount:
+        typeof usage?.count === "number"
+          ? Math.min(Math.max(usage.count, 0), DAILY_LIMIT_MAX)
+          : undefined,
     },
     { status: 429 },
   );
@@ -109,16 +189,11 @@ export async function POST(request: Request) {
 
   const now = new Date();
   const todayJst = toJstDateString(now);
-  const lastCheckedCookie = cookies[DAILY_LIMIT_COOKIE];
-  let lastCheckedIso: string | null = null;
+  const usage = parseUsageCookie(cookies[DAILY_LIMIT_COOKIE]);
 
-  if (lastCheckedCookie) {
-    const lastCheckedDate = new Date(lastCheckedCookie);
-    if (!Number.isNaN(lastCheckedDate.getTime())) {
-      lastCheckedIso = lastCheckedDate.toISOString();
-      if (todayJst && isSameJstDate(lastCheckedDate, now)) {
-        return createLimitExceededResponse(lastCheckedIso);
-      }
+  if (usage && todayJst && usage.date === todayJst) {
+    if (usage.count >= DAILY_LIMIT_MAX) {
+      return createLimitExceededResponse(usage);
     }
   }
 
@@ -142,14 +217,27 @@ export async function POST(request: Request) {
   }
 
   const checkedAt = now.toISOString();
+  const nextCount =
+    usage && todayJst && usage.date === todayJst
+      ? Math.min(usage.count + 1, DAILY_LIMIT_MAX)
+      : 1;
   const response = NextResponse.json<AiCheckSuccessPayload>({
     ...result,
     checkedAt,
+    dailyCheckCount: nextCount,
   });
+
+  const usageRecord: AiCheckUsageCookieValue | null = todayJst
+    ? {
+        date: todayJst,
+        count: nextCount,
+        lastCheckedAt: checkedAt,
+      }
+    : null;
 
   response.cookies.set({
     name: DAILY_LIMIT_COOKIE,
-    value: checkedAt,
+    value: usageRecord ? encodeURIComponent(JSON.stringify(usageRecord)) : checkedAt,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

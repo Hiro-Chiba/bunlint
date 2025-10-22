@@ -1,4 +1,5 @@
 import { convertPunctuation, type PunctuationMode } from "./punctuation";
+import { getHighAccuracyModelName } from "./high-accuracy";
 
 export type WritingStyle =
   | "dearu"
@@ -162,6 +163,7 @@ export type GeminiTransformRequest = {
   writingStyle: WritingStyle;
   punctuationMode: PunctuationMode;
   temperature?: number;
+  useHighAccuracyModel?: boolean;
 };
 
 export type GeminiTransformResult = {
@@ -178,6 +180,7 @@ export type AiCheckerResult = {
 };
 
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-lite";
+const GEMINI_FLASH_MODEL = "gemini-2.0-flash";
 const DEFAULT_API_VERSIONS = ["v1beta", "v1"] as const;
 
 export class GeminiError extends Error {
@@ -222,6 +225,29 @@ function resolveGeminiModel(): string {
   }
 
   return DEFAULT_GEMINI_MODEL;
+}
+
+function buildModelAttemptOrder({
+  baseModel,
+  useHighAccuracyModel = false,
+}: {
+  baseModel: string;
+  useHighAccuracyModel?: boolean;
+}): string[] {
+  const order: string[] = [];
+  const normalizedBase = normalizeModelName(baseModel);
+
+  if (useHighAccuracyModel) {
+    order.push(getHighAccuracyModelName());
+  }
+
+  order.push(normalizedBase);
+
+  if (normalizedBase === DEFAULT_GEMINI_MODEL) {
+    order.push(GEMINI_FLASH_MODEL);
+  }
+
+  return Array.from(new Set(order.map(normalizeModelName)));
 }
 
 function resolveGeminiApiVersions(): string[] {
@@ -469,39 +495,60 @@ function extractTextFromResponse(data: any): string | null {
   return text.length > 0 ? text : null;
 }
 
+function shouldFallbackToAlternateModel(error: GeminiError): boolean {
+  if (error.status === 429 || error.status === 503 || error.status === 507) {
+    return true;
+  }
+
+  if (error.status === 500) {
+    return true;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return /quota|exhausted|overloaded|try again later/.test(message);
+}
+
 async function executeGeminiRequest({
   apiKey,
-  model,
+  models,
   apiVersions,
   payload,
   convertOutputMode,
 }: {
   apiKey: string;
-  model: string;
+  models: string[];
   apiVersions: string[];
   payload: unknown;
   convertOutputMode?: PunctuationMode | null;
 }): Promise<GeminiTransformResult> {
   const errors: GeminiError[] = [];
 
-  for (const version of apiVersions) {
-    try {
-      return await requestGeminiApi({
-        apiKey,
-        model,
-        version,
-        payload,
-        convertOutputMode,
-      });
-    } catch (error) {
-      if (error instanceof GeminiError) {
-        errors.push(error);
-        if (shouldRetryWithNextVersion(error)) {
-          continue;
-        }
-      }
+  for (const model of models) {
+    for (const version of apiVersions) {
+      try {
+        return await requestGeminiApi({
+          apiKey,
+          model,
+          version,
+          payload,
+          convertOutputMode,
+        });
+      } catch (error) {
+        if (error instanceof GeminiError) {
+          errors.push(error);
 
-      throw error;
+          if (shouldRetryWithNextVersion(error)) {
+            continue;
+          }
+
+          if (shouldFallbackToAlternateModel(error)) {
+            break;
+          }
+        }
+
+        throw error;
+      }
     }
   }
 
@@ -702,7 +749,7 @@ export async function analyzeAiLikelihoodWithGemini({
 
   const result = await executeGeminiRequest({
     apiKey,
-    model,
+    models: buildModelAttemptOrder({ baseModel: model }),
     apiVersions,
     payload,
     convertOutputMode: null,
@@ -716,6 +763,7 @@ export async function transformTextWithGemini({
   writingStyle,
   punctuationMode,
   temperature = 0.4,
+  useHighAccuracyModel = false,
 }: GeminiTransformRequest): Promise<GeminiTransformResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -726,6 +774,10 @@ export async function transformTextWithGemini({
 
   const model = resolveGeminiModel();
   const apiVersions = resolveGeminiApiVersions();
+  const models = buildModelAttemptOrder({
+    baseModel: model,
+    useHighAccuracyModel,
+  });
 
   const baseTemperature = temperature;
   const attemptConfigs: AttemptConfig[] = isDearuStyle(writingStyle)
@@ -772,7 +824,7 @@ export async function transformTextWithGemini({
 
     const result = await executeGeminiRequest({
       apiKey,
-      model,
+      models,
       apiVersions,
       payload,
       convertOutputMode: punctuationMode,

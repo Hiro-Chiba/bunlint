@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import {
@@ -8,6 +9,10 @@ import {
   writingStylePresets,
 } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
+import {
+  HIGH_ACCURACY_COOKIE_NAME,
+  verifyHighAccuracyToken,
+} from "@/lib/high-accuracy";
 
 const MAX_INPUT_LENGTH = 4000;
 
@@ -76,11 +81,30 @@ export async function POST(request: Request) {
     );
   }
 
+  const cookieStore = cookies();
+  const highAccuracySecret = process.env.GEMINI_HIGH_ACCURACY_CODE;
+  let useHighAccuracyModel = false;
+
+  if (highAccuracySecret) {
+    const token = cookieStore.get(HIGH_ACCURACY_COOKIE_NAME);
+    if (token?.value) {
+      const verification = verifyHighAccuracyToken(
+        token.value,
+        highAccuracySecret,
+      );
+
+      if (verification) {
+        useHighAccuracyModel = true;
+      }
+    }
+  }
+
   try {
     const result = await transformTextWithGemini({
       inputText: trimmedText,
       writingStyle: normalizedWritingStyle,
       punctuationMode: body.punctuationMode,
+      useHighAccuracyModel,
     });
 
     const preset = writingStylePresets[normalizedWritingStyle];

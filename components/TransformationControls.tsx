@@ -21,6 +21,9 @@ type TransformationControlsProps = {
   onWritingStyleChange: (style: WritingStyle) => void;
   onInvokeStyleTransform?: () => void;
   isTransforming?: boolean;
+  onOpenHighAccuracyModal?: () => void;
+  highAccuracyStatusLabel?: string | null;
+  isHighAccuracyActive?: boolean;
 };
 
 const punctuationModeLabels: Record<PunctuationMode, string> = {
@@ -49,6 +52,9 @@ export function TransformationControls({
   onWritingStyleChange,
   onInvokeStyleTransform,
   isTransforming = false,
+  onOpenHighAccuracyModal,
+  highAccuracyStatusLabel,
+  isHighAccuracyActive = false,
 }: TransformationControlsProps) {
   const selectId = useId();
   const helperId = useId();
@@ -349,6 +355,32 @@ export function TransformationControls({
         >
           {isTransforming ? "変換中..." : "語尾変換を実行"}
         </button>
+        <div className="mt-3 flex flex-col gap-2 rounded-md border border-slate-100 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={onOpenHighAccuracyModal}
+              className={clsx(
+                "inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-semibold transition-colors",
+                isHighAccuracyActive
+                  ? "border-emerald-500 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50"
+                  : "border-slate-300 bg-white text-slate-600 shadow-sm hover:border-brand-300 hover:text-brand-600",
+              )}
+            >
+              AIの精度を上げる
+            </button>
+            <p className="text-[11px] text-slate-500">
+              正しい暗号を入力すると10分間だけ高精度モードが有効になります。
+            </p>
+          </div>
+          {highAccuracyStatusLabel ? (
+            <p className="text-xs font-semibold text-emerald-700">
+              {highAccuracyStatusLabel}
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-400">高精度モードは現在無効です。</p>
+          )}
+        </div>
       </div>
     </section>
   );

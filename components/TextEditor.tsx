@@ -34,6 +34,7 @@ const HISTORY_STORAGE_KEY_PREFIX = "bunlint:history:user:";
 const LEGACY_HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
 const AI_CHECK_STORAGE_KEY_PREFIX = "bunlint:ai-check:user:";
+const DAILY_AI_CHECK_LIMIT = 5;
 
 const AI_CONFIDENCE_LABELS: Record<AiConfidenceLevel, string> = {
   low: "AIらしさは低め",
@@ -227,11 +228,13 @@ type AiCheckSuccessResponse = {
   confidence?: unknown;
   reasoning?: unknown;
   checkedAt?: unknown;
+  dailyCheckCount?: unknown;
 };
 
 type AiCheckErrorResponse = {
   error?: unknown;
   lastCheckedAt?: unknown;
+  dailyCheckCount?: unknown;
 };
 
 const isAiCheckSuccessPayload = (
@@ -265,6 +268,7 @@ export function TextEditor() {
   const [aiCheckMessage, setAiCheckMessage] = useState<string | null>(null);
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
+  const [aiChecksToday, setAiChecksToday] = useState(0);
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -457,6 +461,19 @@ export function TextEditor() {
     }
   }, [aiCheckResult, isUserInitialized, text, userId]);
 
+  useEffect(() => {
+    if (!lastAiCheckAt) {
+      if (aiChecksToday !== 0) {
+        setAiChecksToday(0);
+      }
+      return;
+    }
+
+    if (!isSameJstDate(lastAiCheckAt, new Date()) && aiChecksToday !== 0) {
+      setAiChecksToday(0);
+    }
+  }, [aiChecksToday, lastAiCheckAt]);
+
   const handleTextChange = (value: string) => {
     setText(value);
     setPunctuationMode(detectPunctuationMode(value));
@@ -629,13 +646,18 @@ export function TextEditor() {
     }
 
     const now = new Date();
-    if (lastAiCheckAt && isSameJstDate(lastAiCheckAt, now)) {
+    const hasReachedLimitToday =
+      lastAiCheckAt &&
+      isSameJstDate(lastAiCheckAt, now) &&
+      aiChecksToday >= DAILY_AI_CHECK_LIMIT;
+
+    if (hasReachedLimitToday) {
       const nextWindow = getNextJstMidnight(new Date(lastAiCheckAt));
       const nextLabel = nextWindow.toLocaleString("ja-JP", {
         timeZone: "Asia/Tokyo",
       });
       setAiCheckMessage(
-        `AIチェッカーは日本時間で1日1回までです。次回は${nextLabel}以降にお試しください。`,
+        `AIチェッカーは日本時間で1日5回までです。次回は${nextLabel}以降にお試しください。`,
       );
       return;
     }
@@ -676,6 +698,18 @@ export function TextEditor() {
           setLastAiCheckAt(errorPayload.lastCheckedAt);
         }
 
+        if (
+          errorPayload &&
+          typeof errorPayload.dailyCheckCount === "number" &&
+          Number.isFinite(errorPayload.dailyCheckCount)
+        ) {
+          const normalizedCount = Math.min(
+            DAILY_AI_CHECK_LIMIT,
+            Math.max(0, Math.floor(errorPayload.dailyCheckCount)),
+          );
+          setAiChecksToday(normalizedCount);
+        }
+
         setAiCheckMessage(errorMessage);
         return;
       }
@@ -699,6 +733,20 @@ export function TextEditor() {
           ? successPayload.reasoning.trim()
           : DEFAULT_AI_REASONING[confidence];
       const checkedAt: string = successPayload.checkedAt;
+      const reportedDailyCount =
+        typeof successPayload.dailyCheckCount === "number" &&
+        Number.isFinite(successPayload.dailyCheckCount)
+          ? Math.min(
+              DAILY_AI_CHECK_LIMIT,
+              Math.max(1, Math.floor(successPayload.dailyCheckCount)),
+            )
+          : null;
+      const nextDailyCount =
+        reportedDailyCount !== null
+          ? reportedDailyCount
+          : lastAiCheckAt && isSameJstDate(lastAiCheckAt, checkedAt)
+          ? Math.min(aiChecksToday + 1, DAILY_AI_CHECK_LIMIT)
+          : 1;
 
       const result: AiCheckResultState = {
         score,
@@ -709,6 +757,7 @@ export function TextEditor() {
       };
 
       setAiCheckResult(result);
+      setAiChecksToday(nextDailyCount);
       setAiCheckMessage(`AI生成らしさを判定しました（${score}%）。`);
       setLastAiCheckAt(checkedAt);
 
@@ -792,14 +841,22 @@ export function TextEditor() {
       ? aiCheckResult
       : null;
 
-  const hasCheckedToday =
+  const hasCheckedOnSameDay =
     typeof lastAiCheckAt === "string" && lastAiCheckAt
       ? isSameJstDate(lastAiCheckAt, new Date())
       : false;
 
-  const nextAiCheckWindow = lastAiCheckAt
-    ? getNextJstMidnight(new Date(lastAiCheckAt))
-    : null;
+  const hasReachedDailyLimit =
+    hasCheckedOnSameDay && aiChecksToday >= DAILY_AI_CHECK_LIMIT;
+
+  const remainingAiChecks = hasCheckedOnSameDay
+    ? Math.max(0, DAILY_AI_CHECK_LIMIT - aiChecksToday)
+    : DAILY_AI_CHECK_LIMIT;
+
+  const nextAiCheckWindow =
+    hasReachedDailyLimit && lastAiCheckAt
+      ? getNextJstMidnight(new Date(lastAiCheckAt))
+      : null;
 
   const nextAiCheckLabel = nextAiCheckWindow
     ? nextAiCheckWindow.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
@@ -1013,7 +1070,7 @@ export function TextEditor() {
                 AIチェッカー
               </h3>
               <p className="text-xs text-emerald-700">
-                AI生成らしさを0〜100%で判定します。日本時間で1日に1回のみ実行できます。
+                AI生成らしさを0〜100%で判定します。日本時間で1日に5回まで実行できます。
               </p>
             </header>
             <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -1021,13 +1078,19 @@ export function TextEditor() {
                 type="button"
                 onClick={handleInvokeAiCheck}
                 disabled={
-                  isCheckingAi || hasCheckedToday || text.trim().length === 0
+                  isCheckingAi || hasReachedDailyLimit || text.trim().length === 0
                 }
                 className="rounded-md border border-emerald-400 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-200"
               >
                 {isCheckingAi ? "判定中..." : "AI生成らしさを判定"}
               </button>
-              {hasCheckedToday && nextAiCheckLabel && (
+              {hasCheckedOnSameDay && !hasReachedDailyLimit &&
+                remainingAiChecks < DAILY_AI_CHECK_LIMIT && (
+                  <span className="text-xs text-emerald-800">
+                    本日残り{remainingAiChecks}回判定できます。
+                  </span>
+                )}
+              {hasReachedDailyLimit && nextAiCheckLabel && (
                 <span className="text-xs text-emerald-800">
                   次回判定可能: {nextAiCheckLabel}
                 </span>

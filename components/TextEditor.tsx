@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import clsx from "clsx";
 
@@ -375,33 +375,59 @@ export function TextEditor() {
       const segments = createSentenceSegments(text);
       let colorIndex = 0;
 
-      return segments.map((segment, index) => {
+      const renderSegmentValue = (
+        value: string,
+        backgroundClass: string | null,
+        segmentIndex: number,
+        keyPrefix: "sentence" | "separator",
+      ) => {
+        const characters = Array.from(value);
+        const nodes: JSX.Element[] = [];
+
+        characters.forEach((character, charIndex) => {
+          if (character === "\r") {
+            return;
+          }
+
+          if (character === "\n") {
+            nodes.push(
+              <Fragment key={`${keyPrefix}-${segmentIndex}-break-${charIndex}`}>
+                {"\n"}
+              </Fragment>,
+            );
+            return;
+          }
+
+          const displayValue = toDisplayValue(character);
+          const hasBackground = backgroundClass !== null;
+
+          nodes.push(
+            <span
+              key={`${keyPrefix}-${segmentIndex}-char-${charIndex}`}
+              className={clsx(
+                "inline-block",
+                hasBackground && "rounded-sm px-[0.2em]",
+                hasBackground && backgroundClass,
+              )}
+            >
+              {displayValue}
+            </span>,
+          );
+        });
+
+        return nodes;
+      };
+
+      return segments.flatMap((segment, index) => {
         if (segment.type === "sentence") {
           const backgroundClass =
             colorIndex % 2 === 0 ? "bg-sky-200/70" : "bg-sky-100/70";
           colorIndex += 1;
 
-          return (
-            <span
-              key={`sentence-${index}`}
-              className={clsx(
-                "box-decoration-clone rounded-sm px-1",
-                backgroundClass,
-              )}
-            >
-              {toDisplayValue(segment.value)}
-            </span>
-          );
+          return renderSegmentValue(segment.value, backgroundClass, index, "sentence");
         }
 
-        return (
-          <span
-            key={`sentence-${index}`}
-            className="box-decoration-clone rounded-sm bg-sky-50/70"
-          >
-            {toDisplayValue(segment.value)}
-          </span>
-        );
+        return renderSegmentValue(segment.value, null, index, "separator");
       });
     }
 

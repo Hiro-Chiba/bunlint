@@ -13,6 +13,7 @@ import {
 } from "@/lib/punctuation";
 import { getTextStats } from "@/lib/text";
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
 import { diffWords, type DiffSegment } from "@/lib/diff";
 
 import {
@@ -42,6 +43,19 @@ const createHistoryStorageKey = (userId: string) =>
 const isWritingStyle = (value: unknown): value is WritingStyle =>
   typeof value === "string" &&
   Object.prototype.hasOwnProperty.call(writingStylePresets, value);
+
+const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
+  const now = Date.now();
+
+  return entries.filter((entry) => {
+    const createdAt = new Date(entry.createdAt).getTime();
+    if (!Number.isFinite(createdAt)) {
+      return false;
+    }
+
+    return now - createdAt < HISTORY_RETENTION_MS;
+  });
+};
 
 const resolveWritingStyleFromLabel = (label: unknown): WritingStyle | null => {
   if (typeof label !== "string" || !label) {
@@ -237,8 +251,10 @@ export function TextEditor() {
         .filter((entry): entry is HistoryEntry => entry !== null)
         .slice(0, MAX_HISTORY_ITEMS);
 
-      if (normalized.length > 0) {
-        setHistoryEntries(normalized);
+      const pruned = pruneExpiredHistoryEntries(normalized);
+
+      if (pruned.length > 0) {
+        setHistoryEntries(pruned);
       } else {
         window.localStorage.removeItem(storageKey);
         setHistoryEntries([]);
@@ -409,8 +425,8 @@ export function TextEditor() {
       };
 
       setHistoryEntries((current) => {
-        const next = [entry, ...current];
-        return next.slice(0, MAX_HISTORY_ITEMS);
+        const pruned = pruneExpiredHistoryEntries([entry, ...current]);
+        return pruned.slice(0, MAX_HISTORY_ITEMS);
       });
       setActiveHistoryEntryId(entry.id);
     } catch (error) {

@@ -1,4 +1,5 @@
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import { HISTORY_RETENTION_MINUTES } from "@/lib/history/constants";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 export type HistoryEntry = {
@@ -21,6 +22,22 @@ type HistoryListProps = {
   isRestoreDisabled?: boolean;
 };
 
+const retentionLabel =
+  HISTORY_RETENTION_MINUTES % 60 === 0
+    ? `${HISTORY_RETENTION_MINUTES / 60}時間`
+    : `${HISTORY_RETENTION_MINUTES}分`;
+
+const retentionMessage = `保存から${retentionLabel}で自動削除されます。`;
+
+function HistorySectionHeader() {
+  return (
+    <header>
+      <h3 className="text-sm font-semibold text-slate-700">変換履歴</h3>
+      <p className="mt-1 text-xs text-slate-400">{retentionMessage}</p>
+    </header>
+  );
+}
+
 export function HistoryList({
   entries,
   isLoading = false,
@@ -37,7 +54,7 @@ export function HistoryList({
   if (isLoading) {
     return (
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-700">変換履歴</h3>
+        <HistorySectionHeader />
         <p className="mt-2 text-sm text-slate-500">読み込み中です...</p>
       </section>
     );
@@ -46,7 +63,7 @@ export function HistoryList({
   if (entries.length === 0) {
     return (
       <section className="rounded-lg border border-dashed border-slate-200 bg-slate-100/60 p-4 text-sm text-slate-500">
-        <h3 className="text-sm font-semibold text-slate-600">変換履歴</h3>
+        <HistorySectionHeader />
         <p className="mt-2">
           まだ変換履歴がありません。AI変換を実行すると、ここに最新10件の結果が
           保存されます。
@@ -57,7 +74,7 @@ export function HistoryList({
 
   return (
     <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-slate-700">変換履歴</h3>
+      <HistorySectionHeader />
       <ul className="space-y-3">
         {entries.map((entry) => {
           const preset = writingStylePresets[entry.writingStyle];

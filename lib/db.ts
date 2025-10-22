@@ -79,7 +79,9 @@ class NeonHttpClient {
     const baseUrl = `https://${host}${portSegment}`;
     this.endpoint = `${baseUrl}/sql${url.search || ""}`;
 
-    const authorization = Buffer.from(`${username}:${password}`).toString("base64");
+    const authorization = Buffer.from(`${username}:${password}`).toString(
+      "base64",
+    );
     this.headers = {
       Authorization: `Basic ${authorization}`,
       "Content-Type": "application/json",

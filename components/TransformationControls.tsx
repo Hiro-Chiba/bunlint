@@ -8,10 +8,7 @@ import {
   writingStyleSelectGroups,
   type WritingStyle,
 } from "@/lib/gemini";
-import type {
-  PunctuationCharacter,
-  PunctuationMode,
-} from "@/lib/punctuation";
+import type { PunctuationCharacter, PunctuationMode } from "@/lib/punctuation";
 
 type TransformationControlsProps = {
   punctuationMode: PunctuationMode;
@@ -143,13 +140,17 @@ export function TransformationControls({
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block" htmlFor={fromSelectId}>
-                  <span className="text-xs font-medium text-slate-500">変換元</span>
+                  <span className="text-xs font-medium text-slate-500">
+                    変換元
+                  </span>
                   <select
                     id={fromSelectId}
                     className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                     value={fromCharacter}
                     onChange={(event) =>
-                      setFromCharacter(event.target.value as PunctuationCharacter)
+                      setFromCharacter(
+                        event.target.value as PunctuationCharacter,
+                      )
                     }
                   >
                     {punctuationSelectOptions.map((option) => (
@@ -160,7 +161,9 @@ export function TransformationControls({
                   </select>
                 </label>
                 <label className="block" htmlFor={toSelectId}>
-                  <span className="text-xs font-medium text-slate-500">変換先</span>
+                  <span className="text-xs font-medium text-slate-500">
+                    変換先
+                  </span>
                   <select
                     id={toSelectId}
                     className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
@@ -243,7 +246,9 @@ export function TransformationControls({
               aria-expanded={isPresetListOpen}
               aria-controls={presetListContentId}
             >
-              {isPresetListOpen ? "スタイル一覧を閉じる" : "他のスタイルの説明を表示"}
+              {isPresetListOpen
+                ? "スタイル一覧を閉じる"
+                : "他のスタイルの説明を表示"}
             </button>
           </div>
           {isPresetListOpen && (
@@ -278,9 +283,7 @@ export function TransformationControls({
                                 : "text-slate-600",
                             )}
                           >
-                            <span className="font-medium">
-                              {preset.label}
-                            </span>
+                            <span className="font-medium">{preset.label}</span>
                             ：{preset.description}
                           </li>
                         );

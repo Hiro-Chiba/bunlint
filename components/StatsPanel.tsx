@@ -21,18 +21,22 @@ const statsLabels: Record<keyof TextStats, string> = {
 const interactiveModeByKey: Partial<
   Record<keyof TextStats, Exclude<StatsHighlightMode, "none">>
 > = {
-    words: "words",
-  };
+  words: "words",
+};
 
-const activeCardClassByMode: Record<Exclude<StatsHighlightMode, "none">, string>
-  = {
-    words: "border-emerald-400 bg-emerald-50 shadow-sm",
-  };
+const activeCardClassByMode: Record<
+  Exclude<StatsHighlightMode, "none">,
+  string
+> = {
+  words: "border-emerald-400 bg-emerald-50 shadow-sm",
+};
 
-const focusRingClassByMode: Record<Exclude<StatsHighlightMode, "none">, string> =
-  {
-    words: "focus-visible:ring-emerald-200",
-  };
+const focusRingClassByMode: Record<
+  Exclude<StatsHighlightMode, "none">,
+  string
+> = {
+  words: "focus-visible:ring-emerald-200",
+};
 
 export function StatsPanel({
   stats,

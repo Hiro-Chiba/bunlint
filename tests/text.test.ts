@@ -79,10 +79,7 @@ describe("extractWords", () => {
 
   test("助詞と助動詞が取り除かれる", () => {
     const text = "これはサンプルテキストです。";
-    assert.deepStrictEqual(extractWords(text), [
-      "これ",
-      "サンプルテキスト",
-    ]);
+    assert.deepStrictEqual(extractWords(text), ["これ", "サンプルテキスト"]);
   });
 });
 

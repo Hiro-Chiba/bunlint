@@ -27,7 +27,9 @@ describe("validateWritingStyleCompliance", () => {
     if (!result.ok) {
       assert.match(result.reason, /丁寧語/);
       assert.match(result.directive, /常体に書き換えて/);
-      assert.deepStrictEqual(result.offendingSentences, ["これはサンプルです。"]);
+      assert.deepStrictEqual(result.offendingSentences, [
+        "これはサンプルです。",
+      ]);
     }
   });
 

@@ -3,7 +3,11 @@ import "server-only";
 import { normalizeWritingStyle, type WritingStyle } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
 
-import { DatabaseQueryError, type DatabaseClient, getDatabaseClient } from "./db";
+import {
+  DatabaseQueryError,
+  type DatabaseClient,
+  getDatabaseClient,
+} from "./db";
 
 type TransformHistoryRow = {
   id: string;
@@ -39,10 +43,15 @@ const PUNCTUATION_MODES: readonly PunctuationMode[] = [
 const isPunctuationMode = (value: string): value is PunctuationMode =>
   (PUNCTUATION_MODES as readonly string[]).includes(value);
 
-const mapRowToRecord = (
-  row: TransformHistoryRow,
-): TransformHistoryRecord => {
-  const { id, input_text, output_text, writing_style, punctuation_mode, created_at } = row;
+const mapRowToRecord = (row: TransformHistoryRow): TransformHistoryRecord => {
+  const {
+    id,
+    input_text,
+    output_text,
+    writing_style,
+    punctuation_mode,
+    created_at,
+  } = row;
 
   const normalizedStyle = normalizeWritingStyle(writing_style);
 
@@ -91,7 +100,9 @@ export async function listRecentHistory(
   limit = 10,
 ): Promise<TransformHistoryRecord[]> {
   if (!Number.isInteger(limit) || limit <= 0) {
-    throw new DatabaseQueryError("履歴の取得件数は正の整数で指定してください。");
+    throw new DatabaseQueryError(
+      "履歴の取得件数は正の整数で指定してください。",
+    );
   }
 
   const client = getDatabaseClient();

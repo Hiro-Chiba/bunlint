@@ -9,7 +9,8 @@ const ORIGINAL_API_KEY = process.env.GEMINI_API_KEY;
 
 describe("parseAiCheckerResponse", () => {
   test("JSONレスポンスを正しく解析する", () => {
-    const raw = '{"score": 42, "confidence": "medium", "reasoning": "文体に揺らぎがあります"}';
+    const raw =
+      '{"score": 42, "confidence": "medium", "reasoning": "文体に揺らぎがあります"}';
     const result = parseAiCheckerResponse(raw);
     assert.deepStrictEqual(result, {
       score: 42,
@@ -26,7 +27,8 @@ describe("parseAiCheckerResponse", () => {
   });
 
   test("コードフェンス付きのJSONでも解析できる", () => {
-    const raw = "```json\n{\"likelihood\": \"74\", \"analysis\": \"AI特有の語彙が連続しています\"}\n```";
+    const raw =
+      '```json\n{"likelihood": "74", "analysis": "AI特有の語彙が連続しています"}\n```';
     const result = parseAiCheckerResponse(raw);
     assert.equal(result.score, 74);
     assert.equal(result.confidence, "high");
@@ -35,45 +37,48 @@ describe("parseAiCheckerResponse", () => {
 });
 
 describe("analyzeAiLikelihoodWithGemini", () => {
-  test("Gemini APIの異常応答は例外を送出する", { concurrency: false }, async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response("invalid", { status: 200 });
+  test(
+    "Gemini APIの異常応答は例外を送出する",
+    { concurrency: false },
+    async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => new Response("invalid", { status: 200 });
 
-    try {
-      await assert.rejects(
-        () => GeminiModule.analyzeAiLikelihoodWithGemini({ text: "test" }),
-        (error: unknown) => {
-          assert.equal(error instanceof GeminiError, true);
-          return true;
-        },
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-      process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
-    }
-  });
+      try {
+        await assert.rejects(
+          () => GeminiModule.analyzeAiLikelihoodWithGemini({ text: "test" }),
+          (error: unknown) => {
+            assert.equal(error instanceof GeminiError, true);
+            return true;
+          },
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
+      }
+    },
+  );
 });
 
 describe("/api/ai-check", () => {
-  const createFetchStub = (result: GeminiModule.AiCheckerResult) =>
-    async () =>
-      new Response(
-        JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  {
-                    text: JSON.stringify(result),
-                  },
-                ],
-              },
+  const createFetchStub = (result: GeminiModule.AiCheckerResult) => async () =>
+    new Response(
+      JSON.stringify({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify(result),
+                },
+              ],
             },
-          ],
-        }),
-        { status: 200 },
-      );
+          },
+        ],
+      }),
+      { status: 200 },
+    );
 
   test("同日の6回目は429を返す", { concurrency: false }, async () => {
     process.env.GEMINI_API_KEY = "test-key";
@@ -92,7 +97,9 @@ describe("/api/ai-check", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(cookieHeader ? { cookie: cookieHeader.split(";")[0] ?? "" } : {}),
+            ...(cookieHeader
+              ? { cookie: cookieHeader.split(";")[0] ?? "" }
+              : {}),
           },
           body: JSON.stringify({ inputText: "テスト" }),
         });

@@ -57,7 +57,8 @@ export function AiCheckerSection({
         >
           {isCheckingAi ? "判定中..." : "AI生成らしさを判定"}
         </button>
-        {hasCheckedOnSameDay && !hasReachedDailyLimit &&
+        {hasCheckedOnSameDay &&
+          !hasReachedDailyLimit &&
           remainingAiChecks < dailyLimit && (
             <span className="text-xs text-emerald-800">
               本日残り{remainingAiChecks}回判定できます。
@@ -76,7 +77,10 @@ export function AiCheckerSection({
         <div className="space-y-2 rounded-md border border-emerald-200 bg-white p-3 text-xs text-emerald-900">
           <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
             <span
-              className={clsx("text-lg font-bold", aiResultPresentation.scoreClass)}
+              className={clsx(
+                "text-lg font-bold",
+                aiResultPresentation.scoreClass,
+              )}
             >
               {aiResult.score}%
             </span>
@@ -90,8 +94,7 @@ export function AiCheckerSection({
             </span>
           </p>
           <p className="text-[11px] text-emerald-800">
-            判定日時:
-            {" "}
+            判定日時:{" "}
             {new Date(aiResult.checkedAt).toLocaleString("ja-JP", {
               timeZone: "Asia/Tokyo",
             })}

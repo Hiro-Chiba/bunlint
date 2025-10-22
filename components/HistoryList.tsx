@@ -121,17 +121,15 @@ export function HistoryList({
           ].join(" ");
 
           return (
-            <li
-              key={entry.id}
-              className={cardClassName}
-            >
+            <li key={entry.id} className={cardClassName}>
               <div className="flex items-start justify-between gap-2 text-xs text-slate-500">
                 <span className="leading-relaxed">
                   {new Date(entry.createdAt).toLocaleString("ja-JP")}
                 </span>
                 <div className="flex items-center gap-2 text-slate-500">
                   <span>
-                    {writingStyleLabel} / {punctuationModeLabels[entry.punctuationMode]}
+                    {writingStyleLabel} /{" "}
+                    {punctuationModeLabels[entry.punctuationMode]}
                   </span>
                   {onDeleteEntry && (
                     <button

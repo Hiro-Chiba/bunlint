@@ -56,9 +56,7 @@ const createHistoryStorageKey = (userId: string) =>
 const createAiCheckStorageKey = (userId: string) =>
   `${AI_CHECK_STORAGE_KEY_PREFIX}${userId}`;
 
-const isAiConfidenceLevel = (
-  value: unknown,
-): value is AiConfidenceLevel =>
+const isAiConfidenceLevel = (value: unknown): value is AiConfidenceLevel =>
   value === "low" || value === "medium" || value === "high";
 
 const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
@@ -73,7 +71,9 @@ const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
   return "low";
 };
 
-const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
+const pruneExpiredHistoryEntries = (
+  entries: HistoryEntry[],
+): HistoryEntry[] => {
   const now = Date.now();
 
   return entries.filter((entry) => {
@@ -225,9 +225,9 @@ export function TextEditor() {
   const [isUserInitialized, setIsUserInitialized] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
-  const [activeHistoryEntryId, setActiveHistoryEntryId] = useState<string | null>(
-    null,
-  );
+  const [activeHistoryEntryId, setActiveHistoryEntryId] = useState<
+    string | null
+  >(null);
   const [aiCheckResult, setAiCheckResult] = useState<AiCheckResultState | null>(
     null,
   );
@@ -235,7 +235,8 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
-  const [highlightMode, setHighlightMode] = useState<StatsHighlightMode>("none");
+  const [highlightMode, setHighlightMode] =
+    useState<StatsHighlightMode>("none");
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -314,10 +315,7 @@ export function TextEditor() {
             window.localStorage.setItem(storageKey, legacyStored);
             window.localStorage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
           } catch (error) {
-            console.error(
-              "履歴のユーザー別領域への移行に失敗しました",
-              error,
-            );
+            console.error("履歴のユーザー別領域への移行に失敗しました", error);
           }
         }
       }
@@ -534,7 +532,9 @@ export function TextEditor() {
     }
 
     if (!text.includes(from)) {
-      setStatusMessage(`「${from}」に該当する記号が見つからなかったため、変更はありません。`);
+      setStatusMessage(
+        `「${from}」に該当する記号が見つからなかったため、変更はありません。`,
+      );
       return;
     }
 
@@ -691,10 +691,7 @@ export function TextEditor() {
         body: JSON.stringify({ inputText: text }),
       });
 
-      let payload:
-        | AiCheckSuccessResponse
-        | AiCheckErrorResponse
-        | null = null;
+      let payload: AiCheckSuccessResponse | AiCheckErrorResponse | null = null;
       try {
         payload = (await response.json()) as
           | AiCheckSuccessResponse
@@ -712,10 +709,7 @@ export function TextEditor() {
 
         let normalizedCount: number | null = null;
 
-        if (
-          errorPayload &&
-          typeof errorPayload.lastCheckedAt === "string"
-        ) {
+        if (errorPayload && typeof errorPayload.lastCheckedAt === "string") {
           setLastAiCheckAt(errorPayload.lastCheckedAt);
         }
 
@@ -769,10 +763,7 @@ export function TextEditor() {
               JSON.stringify(nextSnapshot),
             );
           } catch (storageError) {
-            console.error(
-              "AIチェッカー結果の保存に失敗しました",
-              storageError,
-            );
+            console.error("AIチェッカー結果の保存に失敗しました", storageError);
           }
         }
 
@@ -867,12 +858,18 @@ export function TextEditor() {
           return { updated, entries: nextEntries };
         };
 
-        const byOutput = updateEntries(current, (entry) => entry.outputText === text);
+        const byOutput = updateEntries(
+          current,
+          (entry) => entry.outputText === text,
+        );
         if (byOutput.updated) {
           return byOutput.entries;
         }
 
-        const byInput = updateEntries(current, (entry) => entry.inputText === text);
+        const byInput = updateEntries(
+          current,
+          (entry) => entry.inputText === text,
+        );
         if (byInput.updated) {
           return byInput.entries;
         }
@@ -894,9 +891,7 @@ export function TextEditor() {
   };
 
   const aiResultForCurrentText =
-    aiCheckResult && aiCheckResult.textSnapshot === text
-      ? aiCheckResult
-      : null;
+    aiCheckResult && aiCheckResult.textSnapshot === text ? aiCheckResult : null;
 
   const hasCheckedOnSameDay =
     typeof lastAiCheckAt === "string" && lastAiCheckAt
@@ -950,7 +945,8 @@ export function TextEditor() {
       setPunctuationMode(entry.punctuationMode);
       setWritingStyle(entry.writingStyle);
       setStatusMessage(
-        messageOverride ?? `履歴から${writingStyleLabel}の変換結果を復元しました。`,
+        messageOverride ??
+          `履歴から${writingStyleLabel}の変換結果を復元しました。`,
       );
       if (typeof entry.aiScore === "number") {
         const confidence = entry.aiConfidence
@@ -976,7 +972,8 @@ export function TextEditor() {
       setPunctuationMode(detectPunctuationMode(entry.inputText));
       setWritingStyle(entry.writingStyle);
       setStatusMessage(
-        messageOverride ?? "履歴に保存されていた変換前のテキストを復元しました。",
+        messageOverride ??
+          "履歴に保存されていた変換前のテキストを復元しました。",
       );
       setAiCheckResult(null);
       setAiCheckMessage(null);
@@ -1014,7 +1011,9 @@ export function TextEditor() {
       return;
     }
 
-    setActiveHistoryEntryId((current) => (current === entryId ? null : current));
+    setActiveHistoryEntryId((current) =>
+      current === entryId ? null : current,
+    );
     setStatusMessage("選択した履歴を削除しました。");
   };
 

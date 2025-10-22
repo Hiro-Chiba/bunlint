@@ -88,8 +88,7 @@ export async function POST(request: Request) {
   }
 
   const inputText = body.inputText;
-  const outputText =
-    typeof body.outputText === "string" ? body.outputText : "";
+  const outputText = typeof body.outputText === "string" ? body.outputText : "";
 
   try {
     const history = await createHistoryRecord({

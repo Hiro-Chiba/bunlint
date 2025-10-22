@@ -17,8 +17,7 @@ export const AI_CONFIDENCE_PRESENTATION: Record<
   low: {
     scoreClass: "text-emerald-700",
     badgeLabel: "AIらしさ低め",
-    badgeClass:
-      "border border-emerald-200 bg-emerald-100 text-emerald-800",
+    badgeClass: "border border-emerald-200 bg-emerald-100 text-emerald-800",
   },
   medium: {
     scoreClass: "text-amber-600",

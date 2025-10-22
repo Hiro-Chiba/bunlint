@@ -70,7 +70,10 @@ function replaceWithMap(text: string, map: Record<string, string>): string {
 /**
  * 指定した句読点スタイルにテキストを揃える。
  */
-export function convertPunctuation(text: string, mode: PunctuationMode): string {
+export function convertPunctuation(
+  text: string,
+  mode: PunctuationMode,
+): string {
   const map = punctuationMaps[mode] ?? japaneseMap;
   return replaceWithMap(text, map);
 }

@@ -118,9 +118,11 @@ export function EditorTextareaSection({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const highlightOverlayContentRef = useRef<HTMLDivElement | null>(null);
   const textareaScrollRef = useRef({ top: 0, left: 0 });
-  const [highlightOverlayStyles, setHighlightOverlayStyles] = useState<
-    CSSProperties
-  >(() => ({ boxSizing: "border-box", minHeight: "100%" }));
+  const [highlightOverlayStyles, setHighlightOverlayStyles] =
+    useState<CSSProperties>(() => ({
+      boxSizing: "border-box",
+      minHeight: "100%",
+    }));
 
   const highlightOverlayContent = useMemo(() => {
     if (highlightMode !== "words" || text.length === 0) {
@@ -187,7 +189,10 @@ export function EditorTextareaSection({
       fontWeight: computed.fontWeight,
       lineHeight: computed.lineHeight,
       letterSpacing: computed.letterSpacing,
-      paddingTop: createPaddingValue(computed.paddingTop, computed.borderTopWidth),
+      paddingTop: createPaddingValue(
+        computed.paddingTop,
+        computed.borderTopWidth,
+      ),
       paddingRight: createPaddingValue(
         computed.paddingRight,
         computed.borderRightWidth,
@@ -223,11 +228,16 @@ export function EditorTextareaSection({
     const tabSize = computed.getPropertyValue("tab-size");
     if (tabSize) {
       const parsedTabSize = Number.parseFloat(tabSize);
-      nextStyles.tabSize = Number.isNaN(parsedTabSize) ? tabSize : parsedTabSize;
+      nextStyles.tabSize = Number.isNaN(parsedTabSize)
+        ? tabSize
+        : parsedTabSize;
     }
 
     setHighlightOverlayStyles(nextStyles);
-    applyHighlightOverlayTransform(textareaElement.scrollLeft, textareaElement.scrollTop);
+    applyHighlightOverlayTransform(
+      textareaElement.scrollLeft,
+      textareaElement.scrollTop,
+    );
   }, [applyHighlightOverlayTransform]);
 
   const textareaClassName = clsx(

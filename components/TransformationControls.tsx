@@ -3,7 +3,11 @@
 import clsx from "clsx";
 import { useId, useState } from "react";
 
-import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import {
+  writingStylePresets,
+  writingStyleSelectGroups,
+  type WritingStyle,
+} from "@/lib/gemini";
 import type {
   PunctuationCharacter,
   PunctuationMode,
@@ -164,24 +168,36 @@ export function TransformationControls({
               onWritingStyleChange(event.target.value as WritingStyle)
             }
           >
-            {(Object.keys(writingStylePresets) as Array<WritingStyle>).map(
-              (value) => (
-                <option key={value} value={value}>
-                  {writingStylePresets[value].label}
-                </option>
-              ),
-            )}
+            {writingStyleSelectGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.styles.map((value) => (
+                  <option key={value} value={value}>
+                    {writingStylePresets[value].label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </label>
-        <ul className="mt-2 space-y-1 text-xs text-slate-500">
-          {(
-            Object.entries(writingStylePresets) as Array<
-              [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
-            >
-          ).map(([value, preset]) => (
-            <li key={value}>
-              <span className="font-medium text-slate-600">{preset.label}</span>
-              ：{preset.description}
+        <ul className="mt-2 space-y-3 text-xs text-slate-500">
+          {writingStyleSelectGroups.map((group) => (
+            <li key={group.label}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {group.label}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {group.styles.map((value) => {
+                  const preset = writingStylePresets[value];
+                  return (
+                    <li key={value}>
+                      <span className="font-medium text-slate-600">
+                        {preset.label}
+                      </span>
+                      ：{preset.description}
+                    </li>
+                  );
+                })}
+              </ul>
             </li>
           ))}
         </ul>

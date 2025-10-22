@@ -7,13 +7,10 @@ import {
   DatabaseQueryError,
   HISTORY_RETENTION_MINUTES,
 } from "@/lib/history";
-import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import { normalizeWritingStyle } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 const MAX_HISTORY_LIMIT = 50;
-
-const isWritingStyle = (value: unknown): value is WritingStyle =>
-  typeof value === "string" && value in writingStylePresets;
 
 const isPunctuationMode = (value: unknown): value is PunctuationMode =>
   value === "japanese" || value === "academic" || value === "western";
@@ -80,7 +77,9 @@ export async function POST(request: Request) {
     return createErrorResponse("入力テキストが指定されていません。", 400);
   }
 
-  if (!isWritingStyle(body.writingStyle)) {
+  const normalizedWritingStyle = normalizeWritingStyle(body.writingStyle);
+
+  if (!normalizedWritingStyle) {
     return createErrorResponse("語尾スタイルの指定が無効です。", 400);
   }
 
@@ -96,7 +95,7 @@ export async function POST(request: Request) {
     const history = await createHistoryRecord({
       inputText,
       outputText,
-      writingStyle: body.writingStyle,
+      writingStyle: normalizedWritingStyle,
       punctuationMode: body.punctuationMode,
     });
 

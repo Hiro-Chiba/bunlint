@@ -4,8 +4,8 @@ import {
   GeminiError,
   toUserFacingGeminiErrorMessage,
   transformTextWithGemini,
+  normalizeWritingStyle,
   writingStylePresets,
-  type WritingStyle,
 } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
 
@@ -16,10 +16,6 @@ type TransformRequestBody = {
   writingStyle?: unknown;
   punctuationMode?: unknown;
 };
-
-function isWritingStyle(value: unknown): value is WritingStyle {
-  return typeof value === "string" && value in writingStylePresets;
-}
 
 function isPunctuationMode(value: unknown): value is PunctuationMode {
   return value === "japanese" || value === "academic" || value === "western";
@@ -64,7 +60,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!isWritingStyle(body.writingStyle)) {
+  const normalizedWritingStyle = normalizeWritingStyle(body.writingStyle);
+
+  if (!normalizedWritingStyle) {
     return NextResponse.json(
       { error: "指定された語尾スタイルが無効です。" },
       { status: 400 },
@@ -81,15 +79,15 @@ export async function POST(request: Request) {
   try {
     const result = await transformTextWithGemini({
       inputText: trimmedText,
-      writingStyle: body.writingStyle,
+      writingStyle: normalizedWritingStyle,
       punctuationMode: body.punctuationMode,
     });
 
-    const preset = writingStylePresets[body.writingStyle];
+    const preset = writingStylePresets[normalizedWritingStyle];
 
     return NextResponse.json({
       outputText: result.outputText,
-      writingStyle: body.writingStyle,
+      writingStyle: normalizedWritingStyle,
       punctuationMode: body.punctuationMode,
       message: `${preset.label}のトーンに整形しました。`,
     });

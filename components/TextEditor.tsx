@@ -14,6 +14,8 @@ import {
 import { getTextStats } from "@/lib/text";
 import {
   writingStylePresets,
+  normalizeWritingStyle,
+  resolveWritingStyleFromLabel,
   type AiConfidenceLevel,
   type WritingStyle,
 } from "@/lib/gemini";
@@ -56,10 +58,6 @@ const createHistoryStorageKey = (userId: string) =>
 const createAiCheckStorageKey = (userId: string) =>
   `${AI_CHECK_STORAGE_KEY_PREFIX}${userId}`;
 
-const isWritingStyle = (value: unknown): value is WritingStyle =>
-  typeof value === "string" &&
-  Object.prototype.hasOwnProperty.call(writingStylePresets, value);
-
 const isAiConfidenceLevel = (
   value: unknown,
 ): value is AiConfidenceLevel =>
@@ -88,22 +86,6 @@ const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => 
 
     return now - createdAt < HISTORY_RETENTION_MS;
   });
-};
-
-const resolveWritingStyleFromLabel = (label: unknown): WritingStyle | null => {
-  if (typeof label !== "string" || !label) {
-    return null;
-  }
-
-  for (const [value, preset] of Object.entries(writingStylePresets) as Array<
-    [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
-  >) {
-    if (preset.label === label) {
-      return value;
-    }
-  }
-
-  return null;
 };
 
 type StoredAiCheckSnapshot = {
@@ -137,11 +119,14 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
     return null;
   }
 
-  let writingStyle: WritingStyle | null = null;
-  if (isWritingStyle(record.writingStyle)) {
-    writingStyle = record.writingStyle;
-  } else {
+  let writingStyle = normalizeWritingStyle(record.writingStyle);
+
+  if (!writingStyle) {
     writingStyle = resolveWritingStyleFromLabel(record.style);
+  }
+
+  if (!writingStyle) {
+    writingStyle = resolveWritingStyleFromLabel(record.writingStyleLabel);
   }
 
   if (!writingStyle) {
@@ -149,9 +134,10 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
   }
 
   const writingStyleLabel =
-    typeof record.writingStyleLabel === "string" && record.writingStyleLabel
+    writingStylePresets[writingStyle]?.label ??
+    (typeof record.writingStyleLabel === "string"
       ? record.writingStyleLabel
-      : writingStylePresets[writingStyle]?.label;
+      : undefined);
 
   let aiScore: number | undefined;
   if (typeof record.aiScore === "number" && Number.isFinite(record.aiScore)) {

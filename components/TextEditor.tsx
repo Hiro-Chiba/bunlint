@@ -16,7 +16,11 @@ import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
 import { diffWords, type DiffSegment } from "@/lib/diff";
 
-import { HistoryList, type HistoryEntry } from "./HistoryList";
+import {
+  HistoryList,
+  type HistoryEntry,
+  type HistoryRestoreMode,
+} from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
 
@@ -145,6 +149,9 @@ export function TextEditor() {
   const [isUserInitialized, setIsUserInitialized] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
+  const [activeHistoryEntryId, setActiveHistoryEntryId] = useState<string | null>(
+    null,
+  );
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -197,6 +204,7 @@ export function TextEditor() {
 
     if (!isNonEmptyString(userId)) {
       setHistoryEntries([]);
+      setActiveHistoryEntryId(null);
       setHasLoadedHistory(true);
       return;
     }
@@ -226,6 +234,7 @@ export function TextEditor() {
 
       if (!stored) {
         setHistoryEntries([]);
+        setActiveHistoryEntryId(null);
         return;
       }
 
@@ -233,6 +242,7 @@ export function TextEditor() {
       if (!Array.isArray(parsed)) {
         window.localStorage.removeItem(storageKey);
         setHistoryEntries([]);
+        setActiveHistoryEntryId(null);
         return;
       }
 
@@ -247,9 +257,12 @@ export function TextEditor() {
         setHistoryEntries(pruned);
       } else {
         window.localStorage.removeItem(storageKey);
+        setHistoryEntries([]);
+        setActiveHistoryEntryId(null);
       }
     } catch (error) {
       console.error("履歴の読み込みに失敗しました", error);
+      setActiveHistoryEntryId(null);
     } finally {
       setHasLoadedHistory(true);
     }
@@ -279,6 +292,7 @@ export function TextEditor() {
     setPunctuationMode(detectPunctuationMode(value));
     setStatusMessage(null);
     setDiffSegments(null);
+    setActiveHistoryEntryId(null);
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -290,6 +304,7 @@ export function TextEditor() {
     setText(converted);
     setPunctuationMode(mode);
     setDiffSegments(null);
+    setActiveHistoryEntryId(null);
     const statusMessages: Record<PunctuationMode, string> = {
       academic: "句読点を学術スタイル（，．）に変換しました。",
       japanese: "句読点を和文スタイル（、。）に変換しました。",
@@ -322,6 +337,7 @@ export function TextEditor() {
     setText(converted);
     setPunctuationMode(detectPunctuationMode(converted));
     setDiffSegments(null);
+    setActiveHistoryEntryId(null);
     setStatusMessage(`「${from}」を「${to}」に変換しました。`);
   };
 
@@ -412,6 +428,7 @@ export function TextEditor() {
         const pruned = pruneExpiredHistoryEntries([entry, ...current]);
         return pruned.slice(0, MAX_HISTORY_ITEMS);
       });
+      setActiveHistoryEntryId(entry.id);
     } catch (error) {
       console.error(error);
       setStatusMessage(
@@ -425,6 +442,97 @@ export function TextEditor() {
   const textareaDescribedBy = statusMessage
     ? `${editorDescriptionId} ${statusMessageId}`
     : editorDescriptionId;
+
+  const latestHistoryEntry = historyEntries[0] ?? null;
+  const latestHistoryLabel = latestHistoryEntry
+    ? latestHistoryEntry.writingStyleLabel ||
+      writingStylePresets[latestHistoryEntry.writingStyle]?.label ||
+      latestHistoryEntry.writingStyle
+    : "";
+  const latestHistoryTimestamp = latestHistoryEntry
+    ? new Date(latestHistoryEntry.createdAt).toLocaleString("ja-JP")
+    : "";
+
+  const punctuationModeLabels: Record<PunctuationMode, string> = {
+    academic: "学術",
+    japanese: "和文",
+    western: "欧文",
+  };
+
+  const applyHistoryEntry = (
+    entry: HistoryEntry,
+    mode: HistoryRestoreMode,
+    messageOverride?: string,
+  ) => {
+    const writingStyleLabel =
+      entry.writingStyleLabel ||
+      writingStylePresets[entry.writingStyle]?.label ||
+      entry.writingStyle;
+
+    if (mode === "output") {
+      setText(entry.outputText);
+      setPunctuationMode(entry.punctuationMode);
+      setWritingStyle(entry.writingStyle);
+      setStatusMessage(
+        messageOverride ?? `履歴から${writingStyleLabel}の変換結果を復元しました。`,
+      );
+    } else {
+      setText(entry.inputText);
+      setPunctuationMode(detectPunctuationMode(entry.inputText));
+      setWritingStyle(entry.writingStyle);
+      setStatusMessage(
+        messageOverride ?? "履歴に保存されていた変換前のテキストを復元しました。",
+      );
+    }
+
+    setDiffSegments(null);
+    setActiveHistoryEntryId(entry.id);
+  };
+
+  const handleRestoreFromHistory = (
+    entryId: string,
+    mode: HistoryRestoreMode,
+    messageOverride?: string,
+  ) => {
+    const targetEntry = historyEntries.find((entry) => entry.id === entryId);
+    if (!targetEntry) {
+      setStatusMessage("指定された履歴が見つかりませんでした。");
+      return;
+    }
+
+    applyHistoryEntry(targetEntry, mode, messageOverride);
+  };
+
+  const handleUndoLastTransform = () => {
+    if (!latestHistoryEntry) {
+      setStatusMessage("巻き戻し可能なAI変換が見つかりませんでした。");
+      return;
+    }
+
+    applyHistoryEntry(
+      latestHistoryEntry,
+      "input",
+      "直近のAI変換を取り消し、元のテキストを復元しました。",
+    );
+  };
+
+  const handleReapplyLastTransform = () => {
+    if (!latestHistoryEntry) {
+      setStatusMessage("再適用できるAI変換がありません。");
+      return;
+    }
+
+    const label =
+      latestHistoryEntry.writingStyleLabel ||
+      writingStylePresets[latestHistoryEntry.writingStyle]?.label ||
+      latestHistoryEntry.writingStyle;
+
+    applyHistoryEntry(
+      latestHistoryEntry,
+      "output",
+      `${label}の変換結果を再適用しました。`,
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -509,7 +617,60 @@ export function TextEditor() {
           isTransforming={isTransforming}
         />
       </div>
-      <HistoryList entries={historyEntries} isLoading={!hasLoadedHistory} />
+      {latestHistoryEntry && (
+        <section className="space-y-3 rounded-lg border border-brand-100 bg-brand-50/60 p-4 text-sm shadow-sm">
+          <header className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-brand-700">直近のAI変換</h3>
+            <p className="text-xs text-brand-600">
+              {latestHistoryTimestamp}
+              {latestHistoryLabel ? ` / ${latestHistoryLabel}` : ""}
+              {` / ${punctuationModeLabels[latestHistoryEntry.punctuationMode]}`}
+            </p>
+          </header>
+          <div className="grid gap-3 text-xs text-slate-700">
+            <div>
+              <p className="font-semibold text-slate-600">変換後</p>
+              <p className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded border border-brand-100 bg-white p-2 text-slate-700">
+                {latestHistoryEntry.outputText || latestHistoryEntry.inputText}
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-600">変換前</p>
+              <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-brand-50 bg-brand-50/40 p-2 text-slate-600">
+                {latestHistoryEntry.inputText}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={handleUndoLastTransform}
+              disabled={isTransforming}
+              className="rounded-md border border-brand-300 bg-white px-3 py-1 font-semibold text-brand-700 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              元のテキストに戻す
+            </button>
+            <button
+              type="button"
+              onClick={handleReapplyLastTransform}
+              disabled={isTransforming}
+              className="rounded-md border border-brand-500 bg-brand-600 px-3 py-1 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              変換結果を再適用
+            </button>
+          </div>
+          <p className="text-xs text-brand-700/80">
+            巻き戻しはエディタの内容を即座に置き換えます。履歴から別の結果を選ぶことで、任意の変換を復元できます。
+          </p>
+        </section>
+      )}
+      <HistoryList
+        entries={historyEntries}
+        isLoading={!hasLoadedHistory}
+        activeEntryId={activeHistoryEntryId}
+        onRestore={handleRestoreFromHistory}
+        isRestoreDisabled={isTransforming}
+      />
     </div>
   );
 }

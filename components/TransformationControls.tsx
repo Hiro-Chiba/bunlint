@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import {
   writingStylePresets,
@@ -57,9 +57,11 @@ export function TransformationControls({
   const helperId = useId();
   const fromSelectId = useId();
   const toSelectId = useId();
+  const sampleContentId = useId();
 
   const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
   const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
+  const [isSampleOpen, setIsSampleOpen] = useState(false);
   const activePreset = writingStylePresets[writingStyle];
 
   const handleIndividualReplace = () => {
@@ -69,6 +71,10 @@ export function TransformationControls({
 
     onPunctuationCharacterReplace(fromCharacter, toCharacter);
   };
+
+  useEffect(() => {
+    setIsSampleOpen(false);
+  }, [writingStyle]);
 
   return (
     <section className="space-y-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -202,27 +208,48 @@ export function TransformationControls({
           ))}
         </ul>
         {activePreset?.sample && (
-          <div className="mt-3 space-y-2 rounded-md border border-slate-100 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600">
-            <h4 className="text-xs font-semibold text-slate-600">
-              サンプル（{activePreset.label}）
-            </h4>
-            {activePreset.sample.note ? (
-              <p className="text-[11px] text-slate-500">{activePreset.sample.note}</p>
-            ) : null}
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div>
-                <span className="font-medium text-slate-500">変換前</span>
-                <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
-                  {activePreset.sample.before}
-                </p>
+          <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded border border-slate-200 bg-white/60 px-3 py-2 text-left text-xs font-semibold text-slate-600 transition-colors hover:border-brand-300 hover:text-brand-600"
+              onClick={() => setIsSampleOpen((prev) => !prev)}
+              aria-expanded={isSampleOpen}
+              aria-controls={sampleContentId}
+            >
+              サンプルを{isSampleOpen ? "隠す" : "表示"}
+              <span className="ml-3 text-[11px] font-normal text-slate-500">
+                {activePreset.label}
+              </span>
+            </button>
+            {isSampleOpen && (
+              <div
+                id={sampleContentId}
+                className="mt-3 space-y-2 text-[11px] leading-relaxed text-slate-600"
+              >
+                <h4 className="text-xs font-semibold text-slate-600">
+                  サンプル（{activePreset.label}）
+                </h4>
+                {activePreset.sample.note ? (
+                  <p className="text-[11px] text-slate-500">
+                    {activePreset.sample.note}
+                  </p>
+                ) : null}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <span className="font-medium text-slate-500">変換前</span>
+                    <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
+                      {activePreset.sample.before}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-500">変換後</span>
+                    <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
+                      {activePreset.sample.after}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="font-medium text-slate-500">変換後</span>
-                <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
-                  {activePreset.sample.after}
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         )}
         <button

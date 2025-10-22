@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  type CSSProperties,
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-import clsx from "clsx";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import {
   convertPunctuation,
@@ -20,7 +9,7 @@ import {
   type PunctuationCharacter,
   type PunctuationMode,
 } from "@/lib/punctuation";
-import { extractWords, getTextStats } from "@/lib/text";
+import { getTextStats } from "@/lib/text";
 import {
   writingStylePresets,
   normalizeWritingStyle,
@@ -38,8 +27,13 @@ import {
   type HistoryEntry,
   type HistoryRestoreMode,
 } from "./HistoryList";
-import { StatsPanel, type StatsHighlightMode } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
+import type { StatsHighlightMode } from "./StatsPanel";
+import { DEFAULT_AI_REASONING } from "./text-editor/constants";
+import type { AiCheckResultState } from "./text-editor/types";
+import { EditorTextareaSection } from "./text-editor/EditorTextareaSection";
+import { AiCheckerSection } from "./text-editor/AiCheckerSection";
+import { LatestHistoryCard } from "./text-editor/LatestHistoryCard";
 
 const USER_ID_STORAGE_KEY = "bunlint:user-id";
 const HISTORY_STORAGE_KEY_PREFIX = "bunlint:history:user:";
@@ -47,12 +41,6 @@ const LEGACY_HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
 const AI_CHECK_STORAGE_KEY_PREFIX = "bunlint:ai-check:user:";
 const DAILY_AI_CHECK_LIMIT = 5;
-
-const DEFAULT_AI_REASONING: Record<AiConfidenceLevel, string> = {
-  low: "AI生成らしさは低いと判断されました。",
-  medium: "AI生成らしさは中程度と判断されました。",
-  high: "AI生成らしさが高いと判断されました。",
-};
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -84,102 +72,6 @@ const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
 
   return "low";
 };
-
-const AI_CONFIDENCE_PRESENTATION: Record<
-  AiConfidenceLevel,
-  {
-    scoreClass: string;
-    badgeLabel: string;
-    badgeClass: string;
-  }
-> = {
-  low: {
-    scoreClass: "text-emerald-700",
-    badgeLabel: "AIらしさ低め",
-    badgeClass:
-      "border border-emerald-200 bg-emerald-100 text-emerald-800",
-  },
-  medium: {
-    scoreClass: "text-amber-600",
-    badgeLabel: "AIらしさ中程度",
-    badgeClass: "border border-amber-200 bg-amber-100 text-amber-800",
-  },
-  high: {
-    scoreClass: "text-rose-600",
-    badgeLabel: "AIらしさ高め",
-    badgeClass: "border border-rose-200 bg-rose-100 text-rose-800",
-  },
-};
-
-const wordSegmentSplitter = /([\s]+)/;
-
-type HighlightSegment = {
-  value: string;
-  type: "word" | "separator";
-};
-
-const parsePixelValue = (value: string) => {
-  const parsed = Number.parseFloat(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const createPaddingValue = (padding: string, border: string) =>
-  `${parsePixelValue(padding) + parsePixelValue(border)}px`;
-
-const createWordSegments = (value: string): HighlightSegment[] => {
-  if (value.length === 0) {
-    return [];
-  }
-
-  const words = extractWords(value);
-  if (words.length === 0) {
-    return value
-      .split(wordSegmentSplitter)
-      .filter((segment) => segment.length > 0)
-      .map((segment) => ({
-        value: segment,
-        type: /\s+/.test(segment) ? "separator" : "word",
-      }));
-  }
-
-  const segments: HighlightSegment[] = [];
-  let cursor = 0;
-
-  for (const word of words) {
-    const index = value.indexOf(word, cursor);
-    if (index === -1) {
-      return value
-        .split(wordSegmentSplitter)
-        .filter((segment) => segment.length > 0)
-        .map((segment) => ({
-          value: segment,
-          type: /\s+/.test(segment) ? "separator" : "word",
-        }));
-    }
-
-    if (index > cursor) {
-      const separator = value.slice(cursor, index);
-      if (separator.length > 0) {
-        segments.push({ value: separator, type: "separator" });
-      }
-    }
-
-    const token = value.slice(index, index + word.length);
-    segments.push({ value: token, type: "word" });
-    cursor = index + word.length;
-  }
-
-  if (cursor < value.length) {
-    segments.push({ value: value.slice(cursor), type: "separator" });
-  }
-
-  return segments;
-};
-
-// ハイライト用オーバーレイでは改行位置をテキストエリアと揃える必要がある。
-// 半角スペースをノーブレークスペースに変換すると折り返しが変わってしまうため、
-// ここでは元の文字列をそのまま返して描画する。
-const toDisplayValue = (segment: string) => segment;
 
 const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
   const now = Date.now();
@@ -297,14 +189,6 @@ type TransformErrorResponse = {
   error: string;
 };
 
-type AiCheckResultState = {
-  score: number;
-  confidence: AiConfidenceLevel;
-  reasoning: string;
-  checkedAt: string;
-  textSnapshot: string;
-};
-
 type AiCheckSuccessResponse = {
   score?: unknown;
   confidence?: unknown;
@@ -351,13 +235,7 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
-  const [highlightMode, setHighlightMode] =
-    useState<StatsHighlightMode>("none");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const highlightOverlayContentRef = useRef<HTMLDivElement | null>(null);
-  const textareaScrollRef = useRef({ top: 0, left: 0 });
-  const [highlightOverlayStyles, setHighlightOverlayStyles] =
-    useState<CSSProperties>(() => ({ boxSizing: "border-box", minHeight: "100%" }));
+  const [highlightMode, setHighlightMode] = useState<StatsHighlightMode>("none");
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -366,163 +244,6 @@ export function TextEditor() {
   const diffDescriptionId = useId();
 
   const stats = useMemo(() => getTextStats(text), [text]);
-  const highlightOverlayContent = useMemo(() => {
-    if (highlightMode !== "words" || text.length === 0) {
-      return null;
-    }
-
-    const segments = createWordSegments(text);
-
-    if (segments.length === 0) {
-      return null;
-    }
-
-    return segments.map((segment, index) => (
-      <span
-        key={`word-${index}`}
-        className={clsx(
-          "box-decoration-clone rounded-sm",
-          segment.type === "separator"
-            ? "bg-emerald-100/70"
-            : "bg-emerald-200/70 px-1",
-        )}
-      >
-        {toDisplayValue(segment.value)}
-      </span>
-    ));
-  }, [highlightMode, text]);
-  const shouldShowHighlightOverlay = Boolean(highlightOverlayContent);
-  const applyHighlightOverlayTransform = useCallback(
-    (scrollLeft: number, scrollTop: number) => {
-      textareaScrollRef.current.left = scrollLeft;
-      textareaScrollRef.current.top = scrollTop;
-
-      const overlayElement = highlightOverlayContentRef.current;
-      if (overlayElement) {
-        const nextTransform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
-
-        if (overlayElement.style.transform !== nextTransform) {
-          overlayElement.style.transform = nextTransform;
-        }
-      }
-    },
-    [],
-  );
-
-  const syncHighlightOverlayMetrics = useCallback(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const textareaElement = textareaRef.current;
-    if (!textareaElement) {
-      return;
-    }
-
-    const computed = window.getComputedStyle(textareaElement);
-    const nextStyles: CSSProperties = {
-      boxSizing: "border-box",
-      minHeight: "100%",
-      fontFamily: computed.fontFamily,
-      fontSize: computed.fontSize,
-      fontStyle: computed.fontStyle,
-      fontWeight: computed.fontWeight,
-      lineHeight: computed.lineHeight,
-      letterSpacing: computed.letterSpacing,
-      paddingTop: createPaddingValue(computed.paddingTop, computed.borderTopWidth),
-      paddingRight: createPaddingValue(
-        computed.paddingRight,
-        computed.borderRightWidth,
-      ),
-      paddingBottom: createPaddingValue(
-        computed.paddingBottom,
-        computed.borderBottomWidth,
-      ),
-      paddingLeft: createPaddingValue(computed.paddingLeft, computed.borderLeftWidth),
-      whiteSpace: computed.whiteSpace,
-      wordBreak: computed.wordBreak as CSSProperties["wordBreak"],
-      wordSpacing: computed.wordSpacing,
-      textTransform: computed.textTransform as CSSProperties["textTransform"],
-    };
-
-    const textIndent = computed.textIndent;
-    if (textIndent) {
-      nextStyles.textIndent = textIndent;
-    }
-
-    const backgroundColor = computed.backgroundColor;
-    if (
-      backgroundColor &&
-      backgroundColor !== "rgba(0, 0, 0, 0)" &&
-      backgroundColor !== "transparent"
-    ) {
-      nextStyles.backgroundColor = backgroundColor;
-    }
-
-    const tabSize = computed.getPropertyValue("tab-size");
-    if (tabSize) {
-      const parsedTabSize = Number.parseFloat(tabSize);
-      nextStyles.tabSize = Number.isNaN(parsedTabSize) ? tabSize : parsedTabSize;
-    }
-
-    setHighlightOverlayStyles(nextStyles);
-    applyHighlightOverlayTransform(textareaElement.scrollLeft, textareaElement.scrollTop);
-  }, [applyHighlightOverlayTransform]);
-  const textareaClassName = clsx(
-    "min-h-[16rem] w-full resize-y rounded-md border border-slate-200 p-3 text-sm leading-relaxed shadow-inner focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
-    shouldShowHighlightOverlay
-      ? "relative z-20 bg-transparent caret-slate-800"
-      : "bg-slate-50",
-  );
-
-  useLayoutEffect(() => {
-    if (!shouldShowHighlightOverlay) {
-      return;
-    }
-
-    syncHighlightOverlayMetrics();
-
-    const textareaElement = textareaRef.current;
-    if (!textareaElement) {
-      return;
-    }
-
-    applyHighlightOverlayTransform(
-      textareaElement.scrollLeft,
-      textareaElement.scrollTop,
-    );
-
-    if (typeof ResizeObserver === "undefined") {
-      if (typeof window !== "undefined") {
-        const handleResize = () => {
-          syncHighlightOverlayMetrics();
-        };
-
-        window.addEventListener("resize", handleResize);
-
-        return () => {
-          window.removeEventListener("resize", handleResize);
-        };
-      }
-
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      syncHighlightOverlayMetrics();
-    });
-
-    resizeObserver.observe(textareaElement);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [
-    shouldShowHighlightOverlay,
-    highlightOverlayContent,
-    applyHighlightOverlayTransform,
-    syncHighlightOverlayMetrics,
-  ]);
 
   useEffect(() => {
     if (text.length === 0 && highlightMode !== "none") {
@@ -780,12 +501,6 @@ export function TextEditor() {
     }
 
     setHighlightMode((current) => (current === mode ? current : mode));
-  };
-
-  const handleTextareaScroll = (event: { currentTarget: HTMLTextAreaElement }) => {
-    const { scrollLeft, scrollTop } = event.currentTarget;
-
-    applyHighlightOverlayTransform(scrollLeft, scrollTop);
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -1178,19 +893,10 @@ export function TextEditor() {
     }
   };
 
-  const textareaDescribedBy = statusMessage
-    ? `${editorDescriptionId} ${statusMessageId}`
-    : editorDescriptionId;
-
   const aiResultForCurrentText =
     aiCheckResult && aiCheckResult.textSnapshot === text
       ? aiCheckResult
       : null;
-
-  const aiResultPresentation = aiResultForCurrentText
-    ? AI_CONFIDENCE_PRESENTATION[aiResultForCurrentText.confidence] ??
-      AI_CONFIDENCE_PRESENTATION.low
-    : null;
 
   const hasCheckedOnSameDay =
     typeof lastAiCheckAt === "string" && lastAiCheckAt
@@ -1346,167 +1052,34 @@ export function TextEditor() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
-        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <header className="space-y-1">
-            <h2
-              id={editorTitleId}
-              className="text-lg font-semibold text-slate-800"
-            >
-              テキストエディタ
-            </h2>
-            <p id={editorDescriptionId} className="text-sm text-slate-500">
-              テキストを入力すると、文字数や文数がリアルタイムに更新されます。
-            </p>
-          </header>
-          <div className="relative">
-            {shouldShowHighlightOverlay && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md bg-slate-50"
-              >
-                <div
-                  ref={highlightOverlayContentRef}
-                  className="h-full w-full whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-transparent"
-                  style={highlightOverlayStyles}
-                >
-                  {highlightOverlayContent}
-                </div>
-              </div>
-            )}
-            <textarea
-              ref={textareaRef}
-              className={textareaClassName}
-              value={text}
-              onChange={(event) => handleTextChange(event.target.value)}
-              onScroll={handleTextareaScroll}
-              placeholder="ここに文章を入力してください"
-              aria-labelledby={editorTitleId}
-              aria-describedby={textareaDescribedBy}
-            />
-          </div>
-          {statusMessage && (
-            <div
-              role="status"
-              id={statusMessageId}
-              className="rounded-md border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"
-            >
-              {statusMessage}
-            </div>
-          )}
-          {diffSegments && (
-            <section
-              className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3"
-              aria-labelledby={diffTitleId}
-              aria-describedby={diffDescriptionId}
-            >
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <h3 id={diffTitleId} className="font-semibold text-slate-700">
-                  AI差分プレビュー
-                </h3>
-                <span>追加: 緑 / 削除: 赤</span>
-              </div>
-              <p id={diffDescriptionId} className="text-xs text-slate-500">
-                AI変換による変更箇所を背景色でハイライト表示しています。
-              </p>
-              <div className="max-h-48 overflow-auto rounded border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
-                {diffSegments.map((segment, index) => {
-                  const isWhitespaceOnly = segment.value.trim().length === 0;
-                  return (
-                    <span
-                      key={`diff-${index}`}
-                      className={clsx(
-                        segment.type === "added" && !isWhitespaceOnly
-                          ? "rounded-sm bg-emerald-100 px-1 text-emerald-900"
-                          : undefined,
-                        segment.type === "removed" && !isWhitespaceOnly
-                          ? "rounded-sm bg-rose-100 px-1 text-rose-900 line-through"
-                          : segment.type === "removed"
-                            ? "line-through text-rose-600"
-                            : undefined,
-                      )}
-                    >
-                      {segment.value}
-                    </span>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-          <StatsPanel
+        <div className="flex flex-col gap-4">
+          <EditorTextareaSection
+            text={text}
+            onTextChange={handleTextChange}
+            statusMessage={statusMessage}
+            statusMessageId={statusMessageId}
+            editorTitleId={editorTitleId}
+            editorDescriptionId={editorDescriptionId}
+            diffSegments={diffSegments}
+            diffTitleId={diffTitleId}
+            diffDescriptionId={diffDescriptionId}
             stats={stats}
-            activeHighlight={highlightMode}
+            highlightMode={highlightMode}
             onHighlightChange={handleHighlightChange}
           />
-          <section className="space-y-3 rounded-md border border-emerald-100 bg-emerald-50/50 p-4 text-sm text-emerald-900">
-            <header className="space-y-1">
-              <h3 className="text-sm font-semibold text-emerald-800">
-                AIチェッカー
-              </h3>
-              <p className="text-xs text-emerald-700">
-                AI生成らしさを0〜100%で判定します。日本時間で1日に5回まで実行できます。
-              </p>
-            </header>
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <button
-                type="button"
-                onClick={handleInvokeAiCheck}
-                disabled={
-                  isCheckingAi || hasReachedDailyLimit || text.trim().length === 0
-                }
-                className="rounded-md border border-emerald-400 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:border-emerald-200 disabled:bg-emerald-200"
-              >
-                {isCheckingAi ? "判定中..." : "AI生成らしさを判定"}
-              </button>
-              {hasCheckedOnSameDay && !hasReachedDailyLimit &&
-                remainingAiChecks < DAILY_AI_CHECK_LIMIT && (
-                  <span className="text-xs text-emerald-800">
-                    本日残り{remainingAiChecks}回判定できます。
-                  </span>
-                )}
-              {hasReachedDailyLimit && nextAiCheckLabel && (
-                <span className="text-xs text-emerald-800">
-                  次回判定可能: {nextAiCheckLabel}
-                </span>
-              )}
-            </div>
-            {aiCheckMessage && (
-              <p className="text-xs text-emerald-800">{aiCheckMessage}</p>
-            )}
-            {aiResultForCurrentText && aiResultPresentation && (
-              <div className="space-y-2 rounded-md border border-emerald-200 bg-white p-3 text-xs text-emerald-900">
-                <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                  <span
-                    className={clsx(
-                      "text-lg font-bold",
-                      aiResultPresentation.scoreClass,
-                    )}
-                  >
-                    {aiResultForCurrentText.score}%
-                  </span>
-                  <span
-                    className={clsx(
-                      "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold",
-                      aiResultPresentation.badgeClass,
-                    )}
-                  >
-                    {aiResultPresentation.badgeLabel}
-                  </span>
-                </p>
-                <p className="text-[11px] text-emerald-800">
-                  判定日時:
-                  {new Date(
-                    aiResultForCurrentText.checkedAt,
-                  ).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
-                </p>
-                {aiResultForCurrentText.reasoning && (
-                  <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-emerald-800">
-                    {aiResultForCurrentText.reasoning}
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-        </section>
+          <AiCheckerSection
+            text={text}
+            isCheckingAi={isCheckingAi}
+            hasCheckedOnSameDay={hasCheckedOnSameDay}
+            hasReachedDailyLimit={hasReachedDailyLimit}
+            remainingAiChecks={remainingAiChecks}
+            nextAiCheckLabel={nextAiCheckLabel}
+            aiCheckMessage={aiCheckMessage}
+            aiResult={aiResultForCurrentText}
+            onInvokeAiCheck={handleInvokeAiCheck}
+            dailyLimit={DAILY_AI_CHECK_LIMIT}
+          />
+        </div>
         <TransformationControls
           punctuationMode={punctuationMode}
           onPunctuationModeChange={handlePunctuationModeChange}
@@ -1518,71 +1091,17 @@ export function TextEditor() {
         />
       </div>
       {latestHistoryEntry && (
-        <section className="space-y-3 rounded-lg border border-brand-100 bg-brand-50/60 p-4 text-sm shadow-sm">
-          <header className="flex flex-col gap-1">
-            <h3 className="text-sm font-semibold text-brand-700">直近のAI変換</h3>
-            <p className="text-xs text-brand-600">
-              {latestHistoryTimestamp}
-              {latestHistoryLabel ? ` / ${latestHistoryLabel}` : ""}
-              {` / ${punctuationModeLabels[latestHistoryEntry.punctuationMode]}`}
-            </p>
-          </header>
-          <div className="grid gap-3 text-xs text-slate-700">
-            <div>
-              <p className="font-semibold text-slate-600">変換後</p>
-              <p className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded border border-brand-100 bg-white p-2 text-slate-700">
-                {latestHistoryEntry.outputText || latestHistoryEntry.inputText}
-              </p>
-            </div>
-            <div>
-              <p className="font-semibold text-slate-600">変換前</p>
-              <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-brand-50 bg-brand-50/40 p-2 text-slate-600">
-                {latestHistoryEntry.inputText}
-              </p>
-            </div>
-          </div>
-          {typeof latestHistoryEntry.aiScore === "number" && (
-            <div className="rounded-md border border-emerald-200 bg-white/80 p-3 text-xs text-emerald-900">
-              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                <span className="text-lg font-bold text-emerald-700">
-                  {Math.round(latestHistoryEntry.aiScore)}%
-                </span>
-              </p>
-              <p className="mt-1 text-[11px] text-emerald-800">
-                判定日時:
-                {new Date(
-                  latestHistoryEntry.aiCheckedAt ?? latestHistoryEntry.createdAt,
-                ).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
-              </p>
-              {latestHistoryEntry.aiReasoning && (
-                <p className="mt-1 whitespace-pre-wrap text-[11px] text-emerald-800">
-                  {latestHistoryEntry.aiReasoning}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 text-xs">
-            <button
-              type="button"
-              onClick={handleUndoLastTransform}
-              disabled={isTransforming}
-              className="rounded-md border border-brand-300 bg-white px-3 py-1 font-semibold text-brand-700 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              元のテキストに戻す
-            </button>
-            <button
-              type="button"
-              onClick={handleReapplyLastTransform}
-              disabled={isTransforming}
-              className="rounded-md border border-brand-500 bg-brand-600 px-3 py-1 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              変換結果を再適用
-            </button>
-          </div>
-          <p className="text-xs text-brand-700/80">
-            巻き戻しはエディタの内容を即座に置き換えます。履歴から別の結果を選ぶことで、任意の変換を復元できます。
-          </p>
-        </section>
+        <LatestHistoryCard
+          entry={latestHistoryEntry}
+          writingStyleLabel={latestHistoryLabel}
+          timestampLabel={latestHistoryTimestamp}
+          punctuationModeLabel={
+            punctuationModeLabels[latestHistoryEntry.punctuationMode]
+          }
+          onUndo={handleUndoLastTransform}
+          onReapply={handleReapplyLastTransform}
+          isTransforming={isTransforming}
+        />
       )}
       <HistoryList
         entries={historyEntries}

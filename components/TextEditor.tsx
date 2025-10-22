@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import clsx from "clsx";
 
@@ -29,7 +29,7 @@ import {
   type HistoryEntry,
   type HistoryRestoreMode,
 } from "./HistoryList";
-import { StatsPanel } from "./StatsPanel";
+import { StatsPanel, type StatsHighlightMode } from "./StatsPanel";
 import { TransformationControls } from "./TransformationControls";
 
 const USER_ID_STORAGE_KEY = "bunlint:user-id";
@@ -101,6 +101,69 @@ const AI_CONFIDENCE_PRESENTATION: Record<
     badgeClass: "border border-rose-200 bg-rose-100 text-rose-800",
   },
 };
+
+const wordSegmentSplitter = /([\s]+)/;
+
+type WordSegment = {
+  value: string;
+  isWhitespace: boolean;
+};
+
+const createWordSegments = (value: string): WordSegment[] =>
+  value
+    .split(wordSegmentSplitter)
+    .filter((segment) => segment.length > 0)
+    .map((segment) => ({
+      value: segment,
+      isWhitespace: /\s+/.test(segment),
+    }));
+
+type SentenceSegmentType = "sentence" | "separator";
+
+type SentenceSegment = {
+  value: string;
+  type: SentenceSegmentType;
+};
+
+const SENTENCE_END_CHARACTERS = new Set(["。", "．", ".", "!", "?", "！", "？"]);
+
+const createSentenceSegments = (value: string): SentenceSegment[] => {
+  const segments: SentenceSegment[] = [];
+
+  let buffer = "";
+  let currentType: SentenceSegmentType | null = null;
+
+  for (const char of value) {
+    const isWhitespace = /\s/.test(char);
+    const charType: SentenceSegmentType = isWhitespace ? "separator" : "sentence";
+
+    if (currentType === null) {
+      buffer = char;
+      currentType = charType;
+    } else if (currentType === charType) {
+      buffer += char;
+    } else {
+      segments.push({ value: buffer, type: currentType });
+      buffer = char;
+      currentType = charType;
+    }
+
+    if (charType === "sentence" && SENTENCE_END_CHARACTERS.has(char)) {
+      segments.push({ value: buffer, type: "sentence" });
+      buffer = "";
+      currentType = null;
+    }
+  }
+
+  if (buffer) {
+    segments.push({ value: buffer, type: currentType ?? "separator" });
+  }
+
+  return segments;
+};
+
+const toDisplayValue = (segment: string) =>
+  segment.replace(/ /g, "\u00A0").replace(/\t/g, "\u00A0\u00A0\u00A0\u00A0");
 
 const pruneExpiredHistoryEntries = (entries: HistoryEntry[]): HistoryEntry[] => {
   const now = Date.now();
@@ -272,6 +335,10 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
+  const [highlightMode, setHighlightMode] =
+    useState<StatsHighlightMode>("none");
+  const [textareaScroll, setTextareaScroll] = useState({ top: 0, left: 0 });
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -280,6 +347,100 @@ export function TextEditor() {
   const diffDescriptionId = useId();
 
   const stats = useMemo(() => getTextStats(text), [text]);
+  const highlightOverlayContent = useMemo(() => {
+    if (highlightMode === "none" || text.length === 0) {
+      return null;
+    }
+
+    if (highlightMode === "words") {
+      const segments = createWordSegments(text);
+
+      return segments.map((segment, index) => (
+        <span
+          key={`word-${index}`}
+          className={clsx(
+            "box-decoration-clone rounded-sm",
+            segment.isWhitespace
+              ? "bg-emerald-100/70"
+              : "bg-emerald-200/70 px-1",
+          )}
+        >
+          {toDisplayValue(segment.value)}
+        </span>
+      ));
+    }
+
+    if (highlightMode === "sentences") {
+      const segments = createSentenceSegments(text);
+      let colorIndex = 0;
+
+      return segments.map((segment, index) => {
+        if (segment.type === "sentence") {
+          const backgroundClass =
+            colorIndex % 2 === 0 ? "bg-sky-200/70" : "bg-sky-100/70";
+          colorIndex += 1;
+
+          return (
+            <span
+              key={`sentence-${index}`}
+              className={clsx(
+                "box-decoration-clone rounded-sm px-1",
+                backgroundClass,
+              )}
+            >
+              {toDisplayValue(segment.value)}
+            </span>
+          );
+        }
+
+        return (
+          <span
+            key={`sentence-${index}`}
+            className="box-decoration-clone rounded-sm bg-sky-50/70"
+          >
+            {toDisplayValue(segment.value)}
+          </span>
+        );
+      });
+    }
+
+    return null;
+  }, [highlightMode, text]);
+  const shouldShowHighlightOverlay = highlightOverlayContent !== null;
+  const textareaClassName = clsx(
+    "min-h-[16rem] w-full resize-y rounded-md border border-slate-200 p-3 text-sm leading-relaxed shadow-inner focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
+    shouldShowHighlightOverlay
+      ? "relative z-20 bg-transparent caret-slate-800"
+      : "bg-slate-50",
+  );
+
+  useEffect(() => {
+    if (!shouldShowHighlightOverlay) {
+      return;
+    }
+
+    const element = textareaRef.current;
+    if (!element) {
+      return;
+    }
+
+    setTextareaScroll((current) => {
+      const nextTop = element.scrollTop;
+      const nextLeft = element.scrollLeft;
+
+      if (current.top === nextTop && current.left === nextLeft) {
+        return current;
+      }
+
+      return { top: nextTop, left: nextLeft };
+    });
+  }, [shouldShowHighlightOverlay, text]);
+
+  useEffect(() => {
+    if (text.length === 0 && highlightMode !== "none") {
+      setHighlightMode("none");
+    }
+  }, [highlightMode, text]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -523,6 +684,26 @@ export function TextEditor() {
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
+  };
+
+  const handleHighlightChange = (mode: StatsHighlightMode) => {
+    if (mode !== "none" && text.length === 0) {
+      return;
+    }
+
+    setHighlightMode((current) => (current === mode ? current : mode));
+  };
+
+  const handleTextareaScroll = (event: { currentTarget: HTMLTextAreaElement }) => {
+    const { scrollLeft, scrollTop } = event.currentTarget;
+
+    setTextareaScroll((current) => {
+      if (current.left === scrollLeft && current.top === scrollTop) {
+        return current;
+      }
+
+      return { top: scrollTop, left: scrollLeft };
+    });
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -1095,14 +1276,33 @@ export function TextEditor() {
               テキストを入力すると、文字数や文数がリアルタイムに更新されます。
             </p>
           </header>
-          <textarea
-            className="min-h-[16rem] w-full resize-y rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed shadow-inner focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            value={text}
-            onChange={(event) => handleTextChange(event.target.value)}
-            placeholder="ここに文章を入力してください"
-            aria-labelledby={editorTitleId}
-            aria-describedby={textareaDescribedBy}
-          />
+          <div className="relative">
+            {shouldShowHighlightOverlay && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md bg-slate-50"
+              >
+                <div
+                  className="h-full w-full whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-transparent"
+                  style={{
+                    transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)`,
+                  }}
+                >
+                  {highlightOverlayContent}
+                </div>
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              className={textareaClassName}
+              value={text}
+              onChange={(event) => handleTextChange(event.target.value)}
+              onScroll={handleTextareaScroll}
+              placeholder="ここに文章を入力してください"
+              aria-labelledby={editorTitleId}
+              aria-describedby={textareaDescribedBy}
+            />
+          </div>
           {statusMessage && (
             <div
               role="status"
@@ -1151,7 +1351,11 @@ export function TextEditor() {
               </div>
             </section>
           )}
-          <StatsPanel stats={stats} />
+          <StatsPanel
+            stats={stats}
+            activeHighlight={highlightMode}
+            onHighlightChange={handleHighlightChange}
+          />
           <section className="space-y-3 rounded-md border border-emerald-100 bg-emerald-50/50 p-4 text-sm text-emerald-900">
             <header className="space-y-1">
               <h3 className="text-sm font-semibold text-emerald-800">

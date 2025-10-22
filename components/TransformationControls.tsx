@@ -60,11 +60,14 @@ export function TransformationControls({
   const sampleContentId = useId();
   const individualContentId = useId();
   const individualHeadingId = useId();
+  const presetListContentId = useId();
+  const presetListHeadingId = useId();
 
   const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
   const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
   const [isSampleOpen, setIsSampleOpen] = useState(false);
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
+  const [isPresetListOpen, setIsPresetListOpen] = useState(false);
   const activePreset = writingStylePresets[writingStyle];
 
   const handleIndividualReplace = () => {
@@ -77,6 +80,7 @@ export function TransformationControls({
 
   useEffect(() => {
     setIsSampleOpen(false);
+    setIsPresetListOpen(false);
   }, [writingStyle]);
 
   return (
@@ -213,28 +217,81 @@ export function TransformationControls({
             ))}
           </select>
         </label>
-        <ul className="mt-2 space-y-3 text-xs text-slate-500">
-          {writingStyleSelectGroups.map((group) => (
-            <li key={group.label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                {group.label}
+        <div className="mt-3 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+          <div className="px-3 py-3 text-xs text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              選択中のスタイル
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-700">
+              {activePreset?.label ?? writingStyle}
+            </p>
+            {activePreset?.description ? (
+              <p className="mt-1 text-xs text-slate-600">
+                {activePreset.description}
               </p>
-              <ul className="mt-1 space-y-1">
-                {group.styles.map((value) => {
-                  const preset = writingStylePresets[value];
-                  return (
-                    <li key={value}>
-                      <span className="font-medium text-slate-600">
-                        {preset.label}
-                      </span>
-                      ：{preset.description}
-                    </li>
-                  );
-                })}
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                このスタイルの説明は準備中です。
+              </p>
+            )}
+          </div>
+          <div className="border-t border-slate-100 bg-white/60 px-3 py-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 transition-colors hover:text-brand-700"
+              onClick={() => setIsPresetListOpen((prev) => !prev)}
+              aria-expanded={isPresetListOpen}
+              aria-controls={presetListContentId}
+            >
+              {isPresetListOpen ? "スタイル一覧を閉じる" : "他のスタイルの説明を表示"}
+            </button>
+          </div>
+          {isPresetListOpen && (
+            <div
+              id={presetListContentId}
+              className="px-3 pb-3 pt-2"
+              aria-labelledby={presetListHeadingId}
+            >
+              <p
+                id={presetListHeadingId}
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                スタイル一覧
+              </p>
+              <ul className="mt-1 space-y-3 text-xs text-slate-500">
+                {writingStyleSelectGroups.map((group) => (
+                  <li key={group.label}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                      {group.label}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {group.styles.map((value) => {
+                        const preset = writingStylePresets[value];
+                        const isActive = value === writingStyle;
+                        return (
+                          <li
+                            key={value}
+                            className={clsx(
+                              "rounded px-2 py-1",
+                              isActive
+                                ? "bg-white text-brand-600"
+                                : "text-slate-600",
+                            )}
+                          >
+                            <span className="font-medium">
+                              {preset.label}
+                            </span>
+                            ：{preset.description}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </li>
+                ))}
               </ul>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        </div>
         {activePreset?.sample && (
           <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
             <button

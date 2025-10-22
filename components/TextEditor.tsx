@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   convertPunctuation,
@@ -34,6 +34,7 @@ import type { AiCheckResultState } from "./text-editor/types";
 import { EditorTextareaSection } from "./text-editor/EditorTextareaSection";
 import { AiCheckerSection } from "./text-editor/AiCheckerSection";
 import { LatestHistoryCard } from "./text-editor/LatestHistoryCard";
+import { HighAccuracyModal } from "./text-editor/HighAccuracyModal";
 
 const USER_ID_STORAGE_KEY = "bunlint:user-id";
 const HISTORY_STORAGE_KEY_PREFIX = "bunlint:history:user:";
@@ -41,6 +42,7 @@ const LEGACY_HISTORY_STORAGE_KEY = "bunlint:history";
 const MAX_HISTORY_ITEMS = 10;
 const AI_CHECK_STORAGE_KEY_PREFIX = "bunlint:ai-check:user:";
 const DAILY_AI_CHECK_LIMIT = 5;
+const HIGH_ACCURACY_STORAGE_KEY = "bunlint:high-accuracy";
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -94,6 +96,16 @@ type StoredAiCheckSnapshot = {
   textSnapshot?: string;
   dailyCount?: number;
   lastCheckedAt?: string;
+};
+
+type StoredHighAccuracyState = {
+  expiresAt: string;
+};
+
+type HighAccuracyStatusResponse = {
+  active?: boolean;
+  expiresAt?: string;
+  error?: string;
 };
 
 const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
@@ -237,6 +249,19 @@ export function TextEditor() {
   const [aiChecksToday, setAiChecksToday] = useState(0);
   const [highlightMode, setHighlightMode] =
     useState<StatsHighlightMode>("none");
+  const [isHighAccuracyModalOpen, setIsHighAccuracyModalOpen] =
+    useState(false);
+  const [highAccuracyCode, setHighAccuracyCode] = useState("");
+  const [highAccuracyError, setHighAccuracyError] =
+    useState<string | null>(null);
+  const [isActivatingHighAccuracy, setIsActivatingHighAccuracy] =
+    useState(false);
+  const [highAccuracyExpiresAt, setHighAccuracyExpiresAt] =
+    useState<string | null>(null);
+  const [highAccuracyNow, setHighAccuracyNow] = useState(() => Date.now());
+
+  const highAccuracyExpiryTimeoutRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -246,11 +271,172 @@ export function TextEditor() {
 
   const stats = useMemo(() => getTextStats(text), [text]);
 
+  const refreshHighAccuracyStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/high-accuracy", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as HighAccuracyStatusResponse;
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (payload && payload.active && typeof payload.expiresAt === "string") {
+        setHighAccuracyExpiresAt(payload.expiresAt);
+        setHighAccuracyNow(Date.now());
+      } else if (!payload?.active) {
+        setHighAccuracyExpiresAt(null);
+      }
+    } catch (error) {
+      console.error("高精度モードの状態取得に失敗しました", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (text.length === 0 && highlightMode !== "none") {
       setHighlightMode("none");
     }
   }, [highlightMode, text]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+
+      if (typeof window !== "undefined" && highAccuracyExpiryTimeoutRef.current) {
+        window.clearTimeout(highAccuracyExpiryTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(HIGH_ACCURACY_STORAGE_KEY);
+
+      if (!stored) {
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as Partial<StoredHighAccuracyState>;
+
+      if (parsed && typeof parsed.expiresAt === "string") {
+        const expiresAt = new Date(parsed.expiresAt);
+
+        if (!Number.isFinite(expiresAt.getTime())) {
+          window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
+          return;
+        }
+
+        if (expiresAt.getTime() > Date.now()) {
+          setHighAccuracyExpiresAt(parsed.expiresAt);
+          setHighAccuracyNow(Date.now());
+        } else {
+          window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
+        }
+      }
+    } catch (error) {
+      console.error("高精度モードの状態読み込みに失敗しました", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshHighAccuracyStatus();
+  }, [refreshHighAccuracyStatus]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (typeof highAccuracyExpiresAt === "string" && highAccuracyExpiresAt) {
+      try {
+        const payload: StoredHighAccuracyState = {
+          expiresAt: highAccuracyExpiresAt,
+        };
+        window.localStorage.setItem(
+          HIGH_ACCURACY_STORAGE_KEY,
+          JSON.stringify(payload),
+        );
+      } catch (error) {
+        console.error("高精度モードの状態保存に失敗しました", error);
+      }
+      return;
+    }
+
+    try {
+      window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
+    } catch (error) {
+      console.error("高精度モードの状態削除に失敗しました", error);
+    }
+  }, [highAccuracyExpiresAt]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !highAccuracyExpiresAt) {
+      return;
+    }
+
+    setHighAccuracyNow(Date.now());
+
+    const intervalId = window.setInterval(() => {
+      setHighAccuracyNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [highAccuracyExpiresAt]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (highAccuracyExpiryTimeoutRef.current) {
+      window.clearTimeout(highAccuracyExpiryTimeoutRef.current);
+      highAccuracyExpiryTimeoutRef.current = null;
+    }
+
+    if (!highAccuracyExpiresAt) {
+      return;
+    }
+
+    const expiresAt = new Date(highAccuracyExpiresAt);
+
+    if (!Number.isFinite(expiresAt.getTime())) {
+      setHighAccuracyExpiresAt(null);
+      return;
+    }
+
+    const remainingMs = expiresAt.getTime() - Date.now();
+
+    if (remainingMs <= 0) {
+      setHighAccuracyExpiresAt(null);
+      return;
+    }
+
+    highAccuracyExpiryTimeoutRef.current = window.setTimeout(() => {
+      highAccuracyExpiryTimeoutRef.current = null;
+      setHighAccuracyExpiresAt(null);
+      setStatusMessage("高精度モードの有効期限が切れました。");
+    }, remainingMs);
+
+    return () => {
+      if (highAccuracyExpiryTimeoutRef.current) {
+        window.clearTimeout(highAccuracyExpiryTimeoutRef.current);
+        highAccuracyExpiryTimeoutRef.current = null;
+      }
+    };
+  }, [highAccuracyExpiresAt, setStatusMessage]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -552,6 +738,98 @@ export function TextEditor() {
     setAiCheckMessage(null);
     setStatusMessage(`「${from}」を「${to}」に変換しました。`);
   };
+
+  const handleOpenHighAccuracyModal = useCallback(() => {
+    setHighAccuracyCode("");
+    setHighAccuracyError(null);
+    setIsHighAccuracyModalOpen(true);
+  }, []);
+
+  const handleCloseHighAccuracyModal = useCallback(() => {
+    if (!isActivatingHighAccuracy) {
+      setIsHighAccuracyModalOpen(false);
+      setHighAccuracyCode("");
+      setHighAccuracyError(null);
+    }
+  }, [isActivatingHighAccuracy]);
+
+  const handleHighAccuracyCodeChange = useCallback(
+    (value: string) => {
+      setHighAccuracyCode(value);
+      if (highAccuracyError) {
+        setHighAccuracyError(null);
+      }
+    },
+    [highAccuracyError],
+  );
+
+  const handleActivateHighAccuracy = useCallback(async () => {
+    if (isActivatingHighAccuracy) {
+      return;
+    }
+
+    const trimmed = highAccuracyCode.trim();
+    if (!trimmed) {
+      setHighAccuracyError("暗号を入力してください。");
+      return;
+    }
+
+    setIsActivatingHighAccuracy(true);
+    setHighAccuracyError(null);
+
+    try {
+      const response = await fetch("/api/high-accuracy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+
+      let payload: HighAccuracyStatusResponse | { expiresAt?: unknown; error?: unknown } | null = null;
+
+      try {
+        payload = (await response.json()) as
+          | HighAccuracyStatusResponse
+          | { expiresAt?: unknown; error?: unknown };
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          payload && typeof (payload as any)?.error === "string"
+            ? String((payload as any).error)
+            : "暗号の確認に失敗しました。時間をおいて再試行してください。";
+        setHighAccuracyError(errorMessage);
+        return;
+      }
+
+      const expiresAt =
+        payload && typeof payload.expiresAt === "string"
+          ? payload.expiresAt
+          : null;
+
+      if (!expiresAt) {
+        setHighAccuracyError(
+          "高精度モードの有効化に失敗しました。管理者にお問い合わせください。",
+        );
+        return;
+      }
+
+      setHighAccuracyExpiresAt(expiresAt);
+      setHighAccuracyNow(Date.now());
+      setHighAccuracyCode("");
+      setHighAccuracyError(null);
+      setIsHighAccuracyModalOpen(false);
+      setStatusMessage("高精度モードを10分間有効化しました。");
+    } catch (error) {
+      console.error("高精度モードの有効化に失敗しました", error);
+      setHighAccuracyError(
+        "高精度モードの有効化に失敗しました。通信環境をご確認のうえ再度お試しください。",
+      );
+    } finally {
+      setIsActivatingHighAccuracy(false);
+    }
+  }, [highAccuracyCode, isActivatingHighAccuracy]);
 
   const handleInvokeStyleTransform = async () => {
     if (isTransforming) {
@@ -914,6 +1192,32 @@ export function TextEditor() {
     ? nextAiCheckWindow.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
     : null;
 
+  const highAccuracyStatusLabel = useMemo(() => {
+    if (!highAccuracyExpiresAt) {
+      return null;
+    }
+
+    const expiresAt = new Date(highAccuracyExpiresAt);
+    if (!Number.isFinite(expiresAt.getTime())) {
+      return null;
+    }
+
+    const remainingMs = expiresAt.getTime() - highAccuracyNow;
+    if (remainingMs <= 0) {
+      return null;
+    }
+
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `高精度モード有効中（残り${minutes}分${seconds
+      .toString()
+      .padStart(2, "0")}秒）`;
+  }, [highAccuracyExpiresAt, highAccuracyNow]);
+
+  const isHighAccuracyActive = Boolean(highAccuracyStatusLabel);
+
   const latestHistoryEntry = historyEntries[0] ?? null;
   const latestHistoryLabel = latestHistoryEntry
     ? latestHistoryEntry.writingStyleLabel ||
@@ -1087,6 +1391,9 @@ export function TextEditor() {
           onWritingStyleChange={setWritingStyle}
           onInvokeStyleTransform={handleInvokeStyleTransform}
           isTransforming={isTransforming}
+          onOpenHighAccuracyModal={handleOpenHighAccuracyModal}
+          highAccuracyStatusLabel={highAccuracyStatusLabel}
+          isHighAccuracyActive={isHighAccuracyActive}
         />
       </div>
       {latestHistoryEntry && (
@@ -1109,6 +1416,15 @@ export function TextEditor() {
         onRestore={handleRestoreFromHistory}
         isRestoreDisabled={isTransforming}
         onDeleteEntry={handleDeleteHistoryEntry}
+      />
+      <HighAccuracyModal
+        isOpen={isHighAccuracyModalOpen}
+        code={highAccuracyCode}
+        onCodeChange={handleHighAccuracyCodeChange}
+        onSubmit={handleActivateHighAccuracy}
+        onClose={handleCloseHighAccuracyModal}
+        isSubmitting={isActivatingHighAccuracy}
+        errorMessage={highAccuracyError}
       />
     </div>
   );

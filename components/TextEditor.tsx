@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import clsx from "clsx";
 
@@ -108,6 +117,14 @@ type HighlightSegment = {
   value: string;
   type: "word" | "separator";
 };
+
+const parsePixelValue = (value: string) => {
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const createPaddingValue = (padding: string, border: string) =>
+  `${parsePixelValue(padding) + parsePixelValue(border)}px`;
 
 const createWordSegments = (value: string): HighlightSegment[] => {
   if (value.length === 0) {
@@ -336,8 +353,11 @@ export function TextEditor() {
   const [aiChecksToday, setAiChecksToday] = useState(0);
   const [highlightMode, setHighlightMode] =
     useState<StatsHighlightMode>("none");
-  const [textareaScroll, setTextareaScroll] = useState({ top: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const highlightOverlayContentRef = useRef<HTMLDivElement | null>(null);
+  const textareaScrollRef = useRef({ top: 0, left: 0 });
+  const [highlightOverlayStyles, setHighlightOverlayStyles] =
+    useState<CSSProperties>(() => ({ boxSizing: "border-box", minHeight: "100%" }));
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
@@ -372,6 +392,82 @@ export function TextEditor() {
     ));
   }, [highlightMode, text]);
   const shouldShowHighlightOverlay = Boolean(highlightOverlayContent);
+  const applyHighlightOverlayTransform = useCallback(
+    (scrollLeft: number, scrollTop: number) => {
+      textareaScrollRef.current.left = scrollLeft;
+      textareaScrollRef.current.top = scrollTop;
+
+      const overlayElement = highlightOverlayContentRef.current;
+      if (overlayElement) {
+        const nextTransform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
+
+        if (overlayElement.style.transform !== nextTransform) {
+          overlayElement.style.transform = nextTransform;
+        }
+      }
+    },
+    [],
+  );
+
+  const syncHighlightOverlayMetrics = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const textareaElement = textareaRef.current;
+    if (!textareaElement) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(textareaElement);
+    const nextStyles: CSSProperties = {
+      boxSizing: "border-box",
+      minHeight: "100%",
+      fontFamily: computed.fontFamily,
+      fontSize: computed.fontSize,
+      fontStyle: computed.fontStyle,
+      fontWeight: computed.fontWeight,
+      lineHeight: computed.lineHeight,
+      letterSpacing: computed.letterSpacing,
+      paddingTop: createPaddingValue(computed.paddingTop, computed.borderTopWidth),
+      paddingRight: createPaddingValue(
+        computed.paddingRight,
+        computed.borderRightWidth,
+      ),
+      paddingBottom: createPaddingValue(
+        computed.paddingBottom,
+        computed.borderBottomWidth,
+      ),
+      paddingLeft: createPaddingValue(computed.paddingLeft, computed.borderLeftWidth),
+      whiteSpace: computed.whiteSpace,
+      wordBreak: computed.wordBreak as CSSProperties["wordBreak"],
+      wordSpacing: computed.wordSpacing,
+      textTransform: computed.textTransform as CSSProperties["textTransform"],
+    };
+
+    const textIndent = computed.textIndent;
+    if (textIndent) {
+      nextStyles.textIndent = textIndent;
+    }
+
+    const backgroundColor = computed.backgroundColor;
+    if (
+      backgroundColor &&
+      backgroundColor !== "rgba(0, 0, 0, 0)" &&
+      backgroundColor !== "transparent"
+    ) {
+      nextStyles.backgroundColor = backgroundColor;
+    }
+
+    const tabSize = computed.getPropertyValue("tab-size");
+    if (tabSize) {
+      const parsedTabSize = Number.parseFloat(tabSize);
+      nextStyles.tabSize = Number.isNaN(parsedTabSize) ? tabSize : parsedTabSize;
+    }
+
+    setHighlightOverlayStyles(nextStyles);
+    applyHighlightOverlayTransform(textareaElement.scrollLeft, textareaElement.scrollTop);
+  }, [applyHighlightOverlayTransform]);
   const textareaClassName = clsx(
     "min-h-[16rem] w-full resize-y rounded-md border border-slate-200 p-3 text-sm leading-relaxed shadow-inner focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
     shouldShowHighlightOverlay
@@ -379,27 +475,54 @@ export function TextEditor() {
       : "bg-slate-50",
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!shouldShowHighlightOverlay) {
       return;
     }
 
-    const element = textareaRef.current;
-    if (!element) {
+    syncHighlightOverlayMetrics();
+
+    const textareaElement = textareaRef.current;
+    if (!textareaElement) {
       return;
     }
 
-    setTextareaScroll((current) => {
-      const nextTop = element.scrollTop;
-      const nextLeft = element.scrollLeft;
+    applyHighlightOverlayTransform(
+      textareaElement.scrollLeft,
+      textareaElement.scrollTop,
+    );
 
-      if (current.top === nextTop && current.left === nextLeft) {
-        return current;
+    if (typeof ResizeObserver === "undefined") {
+      if (typeof window !== "undefined") {
+        const handleResize = () => {
+          syncHighlightOverlayMetrics();
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+          window.removeEventListener("resize", handleResize);
+        };
       }
 
-      return { top: nextTop, left: nextLeft };
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      syncHighlightOverlayMetrics();
     });
-  }, [shouldShowHighlightOverlay, text]);
+
+    resizeObserver.observe(textareaElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [
+    shouldShowHighlightOverlay,
+    highlightOverlayContent,
+    applyHighlightOverlayTransform,
+    syncHighlightOverlayMetrics,
+  ]);
 
   useEffect(() => {
     if (text.length === 0 && highlightMode !== "none") {
@@ -662,13 +785,7 @@ export function TextEditor() {
   const handleTextareaScroll = (event: { currentTarget: HTMLTextAreaElement }) => {
     const { scrollLeft, scrollTop } = event.currentTarget;
 
-    setTextareaScroll((current) => {
-      if (current.left === scrollLeft && current.top === scrollTop) {
-        return current;
-      }
-
-      return { top: scrollTop, left: scrollLeft };
-    });
+    applyHighlightOverlayTransform(scrollLeft, scrollTop);
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -1248,10 +1365,9 @@ export function TextEditor() {
                 className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md bg-slate-50"
               >
                 <div
+                  ref={highlightOverlayContentRef}
                   className="h-full w-full whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-transparent"
-                  style={{
-                    transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)`,
-                  }}
+                  style={highlightOverlayStyles}
                 >
                   {highlightOverlayContent}
                 </div>

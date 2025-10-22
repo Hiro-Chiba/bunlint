@@ -94,6 +94,8 @@ type StoredAiCheckSnapshot = {
   reasoning?: string;
   checkedAt: string;
   textSnapshot?: string;
+  dailyCount?: number;
+  lastCheckedAt?: string;
 };
 
 const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
@@ -388,6 +390,9 @@ export function TextEditor() {
       if (aiCheckResult) {
         setAiCheckResult(null);
       }
+      if (aiChecksToday !== 0) {
+        setAiChecksToday(0);
+      }
       return;
     }
 
@@ -398,24 +403,59 @@ export function TextEditor() {
 
       if (!stored) {
         setLastAiCheckAt(null);
+        if (aiChecksToday !== 0) {
+          setAiChecksToday(0);
+        }
         return;
       }
 
       const parsed: unknown = JSON.parse(stored);
       if (!parsed || typeof parsed !== "object") {
+        setLastAiCheckAt(null);
+        if (aiChecksToday !== 0) {
+          setAiChecksToday(0);
+        }
         return;
       }
 
       const snapshot = parsed as Partial<StoredAiCheckSnapshot>;
 
-      if (typeof snapshot.checkedAt === "string") {
-        setLastAiCheckAt(snapshot.checkedAt);
+      const resolvedLastCheckedAt =
+        (typeof snapshot.checkedAt === "string" && snapshot.checkedAt) ||
+        (typeof snapshot.lastCheckedAt === "string"
+          ? snapshot.lastCheckedAt
+          : null);
+
+      if (resolvedLastCheckedAt) {
+        setLastAiCheckAt(resolvedLastCheckedAt);
+      } else {
+        setLastAiCheckAt(null);
+      }
+
+      let restoredCount = false;
+
+      if (
+        typeof snapshot.dailyCount === "number" &&
+        Number.isFinite(snapshot.dailyCount) &&
+        resolvedLastCheckedAt &&
+        isSameJstDate(resolvedLastCheckedAt, new Date())
+      ) {
+        const normalizedCount = Math.min(
+          DAILY_AI_CHECK_LIMIT,
+          Math.max(0, Math.floor(snapshot.dailyCount)),
+        );
+        setAiChecksToday(normalizedCount);
+        restoredCount = true;
+      }
+
+      if (!restoredCount && aiChecksToday !== 0) {
+        setAiChecksToday(0);
       }
 
       if (
         typeof snapshot.score === "number" &&
         isAiConfidenceLevel(snapshot.confidence) &&
-        typeof snapshot.checkedAt === "string" &&
+        resolvedLastCheckedAt &&
         typeof snapshot.textSnapshot === "string" &&
         snapshot.textSnapshot === text
       ) {
@@ -426,14 +466,14 @@ export function TextEditor() {
             typeof snapshot.reasoning === "string" && snapshot.reasoning
               ? snapshot.reasoning
               : DEFAULT_AI_REASONING[snapshot.confidence],
-          checkedAt: snapshot.checkedAt,
+          checkedAt: resolvedLastCheckedAt,
           textSnapshot: snapshot.textSnapshot,
         });
       }
     } catch (error) {
       console.error("AIチェッカーの履歴読み込みに失敗しました", error);
     }
-  }, [aiCheckResult, isUserInitialized, text, userId]);
+  }, [aiCheckResult, aiChecksToday, isUserInitialized, text, userId]);
 
   useEffect(() => {
     if (!lastAiCheckAt) {
@@ -665,6 +705,8 @@ export function TextEditor() {
             ? errorPayload.error
             : "AIチェッカーの実行に失敗しました。時間をおいて再度お試しください。";
 
+        let normalizedCount: number | null = null;
+
         if (
           errorPayload &&
           typeof errorPayload.lastCheckedAt === "string"
@@ -677,11 +719,56 @@ export function TextEditor() {
           typeof errorPayload.dailyCheckCount === "number" &&
           Number.isFinite(errorPayload.dailyCheckCount)
         ) {
-          const normalizedCount = Math.min(
+          normalizedCount = Math.min(
             DAILY_AI_CHECK_LIMIT,
             Math.max(0, Math.floor(errorPayload.dailyCheckCount)),
           );
           setAiChecksToday(normalizedCount);
+        }
+
+        if (typeof window !== "undefined" && isNonEmptyString(userId)) {
+          try {
+            const storageKey = createAiCheckStorageKey(userId);
+            let existing: Partial<StoredAiCheckSnapshot> = {};
+
+            const stored = window.localStorage.getItem(storageKey);
+            if (stored) {
+              try {
+                const parsed: unknown = JSON.parse(stored);
+                if (parsed && typeof parsed === "object") {
+                  existing = parsed as Partial<StoredAiCheckSnapshot>;
+                }
+              } catch {
+                existing = {};
+              }
+            }
+
+            const nextSnapshot: Partial<StoredAiCheckSnapshot> = {
+              ...existing,
+            };
+
+            if (
+              errorPayload &&
+              typeof errorPayload.lastCheckedAt === "string"
+            ) {
+              nextSnapshot.lastCheckedAt = errorPayload.lastCheckedAt;
+              nextSnapshot.checkedAt = errorPayload.lastCheckedAt;
+            }
+
+            if (normalizedCount !== null) {
+              nextSnapshot.dailyCount = normalizedCount;
+            }
+
+            window.localStorage.setItem(
+              storageKey,
+              JSON.stringify(nextSnapshot),
+            );
+          } catch (storageError) {
+            console.error(
+              "AIチェッカー結果の保存に失敗しました",
+              storageError,
+            );
+          }
         }
 
         setAiCheckMessage(errorMessage);
@@ -741,7 +828,9 @@ export function TextEditor() {
           confidence: result.confidence,
           reasoning: result.reasoning,
           checkedAt: result.checkedAt,
+          lastCheckedAt: result.checkedAt,
           textSnapshot: result.textSnapshot,
+          dailyCount: nextDailyCount,
         };
 
         try {

@@ -9,13 +9,19 @@ if (!isProduction) {
   connectSrc.push("ws:");
 }
 
+const scriptSrc = ["'self'", "'unsafe-inline'"];
+
+if (!isProduction) {
+  scriptSrc.push("'unsafe-eval'");
+}
+
 const ContentSecurityPolicy = [
   "default-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   `connect-src ${connectSrc.join(" ")}`,
-  "script-src 'self'",
+  `script-src ${scriptSrc.join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",

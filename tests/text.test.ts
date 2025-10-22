@@ -5,6 +5,7 @@ import {
   countCharacters,
   countSentences,
   countWords,
+  extractWords,
   getTextStats,
 } from "../lib/text";
 
@@ -20,7 +21,7 @@ describe("countCharacters", () => {
 });
 
 describe("countWords", () => {
-  test("空白で区切られた単語数を返す", () => {
+  test("空白で区切られた語数を返す", () => {
     const text = "This  is\n  a\ttest";
     assert.strictEqual(countWords(text), 4);
   });
@@ -29,27 +30,59 @@ describe("countWords", () => {
     assert.strictEqual(countWords("   "), 0);
   });
 
-  test("日本語の文章からも概算の単語数を求める", () => {
+  test("日本語の文章から内容語数を求める", () => {
     const text = "単語数が少ない問題を修正してください";
-    assert.strictEqual(countWords(text), 7);
+    assert.strictEqual(countWords(text), 5);
   });
 
-  test("助詞の境界で語を識別する", () => {
+  test("助詞の境界で内容語を識別する", () => {
     const text = "私は本を読みます";
-    assert.strictEqual(countWords(text), 6);
+    assert.strictEqual(countWords(text), 3);
   });
 
   test("ひらがなだけの語は不必要に分割しない", () => {
     assert.strictEqual(countWords("たべもの"), 1);
   });
 
-  test("かな書きの名詞と助詞の組み合わせも認識する", () => {
-    assert.strictEqual(countWords("おちゃを飲む"), 3);
+  test("かな書きの名詞と助詞の組み合わせから助詞を除外する", () => {
+    assert.strictEqual(countWords("おちゃを飲む"), 2);
   });
 
-  test("句読点や改行が混在していても単語数を求める", () => {
+  test("助詞と助動詞を除外して内容語を数える", () => {
+    const text = "これはサンプルテキストです。";
+    assert.strictEqual(countWords(text), 2);
+  });
+
+  test("句読点や改行が混在していても内容語数を求める", () => {
     const text = "This is a test.\nNew-line text, please!";
     assert.strictEqual(countWords(text), 8);
+  });
+
+  test("日本語の読点で区切られた語を正しく数える", () => {
+    const text = "「これ，サンプルテキスト，自由，編集，機能，試してください」";
+    assert.strictEqual(countWords(text), 6);
+  });
+});
+
+describe("extractWords", () => {
+  test("語のリストを抽出できる", () => {
+    const text = "「これ，サンプルテキスト，自由，編集，機能，試してください」";
+    assert.deepStrictEqual(extractWords(text), [
+      "これ",
+      "サンプルテキスト",
+      "自由",
+      "編集",
+      "機能",
+      "試してください",
+    ]);
+  });
+
+  test("助詞と助動詞が取り除かれる", () => {
+    const text = "これはサンプルテキストです。";
+    assert.deepStrictEqual(extractWords(text), [
+      "これ",
+      "サンプルテキスト",
+    ]);
   });
 });
 
@@ -81,7 +114,7 @@ describe("countSentences", () => {
 });
 
 describe("getTextStats", () => {
-  test("文字数・単語数・文数をまとめて返す", () => {
+  test("文字数・内容語数・文数をまとめて返す", () => {
     const text = "テストです。This is a test.";
     assert.deepStrictEqual(getTextStats(text), {
       characters: countCharacters(text),

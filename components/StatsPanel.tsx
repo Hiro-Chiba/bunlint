@@ -14,7 +14,7 @@ type StatsPanelProps = {
 
 const statsLabels: Record<keyof TextStats, string> = {
   characters: "文字数",
-  words: "単語数",
+  words: "内容語数",
   sentences: "文数",
 };
 

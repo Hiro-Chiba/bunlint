@@ -440,9 +440,9 @@ export function TextEditor() {
       ),
       paddingLeft: createPaddingValue(computed.paddingLeft, computed.borderLeftWidth),
       whiteSpace: computed.whiteSpace,
-      wordBreak: computed.wordBreak,
+      wordBreak: computed.wordBreak as CSSProperties["wordBreak"],
       wordSpacing: computed.wordSpacing,
-      textTransform: computed.textTransform,
+      textTransform: computed.textTransform as CSSProperties["textTransform"],
     };
 
     const textIndent = computed.textIndent;

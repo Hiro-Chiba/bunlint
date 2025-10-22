@@ -4,7 +4,7 @@ import type { TextStats } from "@/lib/text";
 
 const numberFormatter = new Intl.NumberFormat("ja-JP");
 
-export type StatsHighlightMode = "none" | "words" | "sentences";
+export type StatsHighlightMode = "none" | "words";
 
 type StatsPanelProps = {
   stats: TextStats;
@@ -22,19 +22,16 @@ const interactiveModeByKey: Partial<
   Record<keyof TextStats, Exclude<StatsHighlightMode, "none">>
 > = {
     words: "words",
-    sentences: "sentences",
   };
 
 const activeCardClassByMode: Record<Exclude<StatsHighlightMode, "none">, string>
   = {
     words: "border-emerald-400 bg-emerald-50 shadow-sm",
-    sentences: "border-sky-400 bg-sky-50 shadow-sm",
   };
 
 const focusRingClassByMode: Record<Exclude<StatsHighlightMode, "none">, string> =
   {
     words: "focus-visible:ring-emerald-200",
-    sentences: "focus-visible:ring-sky-200",
   };
 
 export function StatsPanel({

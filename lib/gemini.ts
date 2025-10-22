@@ -1,12 +1,18 @@
 import { convertPunctuation, type PunctuationMode } from "./punctuation";
 
-export type WritingStyle = "dearu" | "desumasu";
+export type WritingStyle = "dearu" | "desumasu" | "humanize";
 
 export type StylePreset = {
   label: string;
   description: string;
   toneInstruction: string;
   strictToneInstruction?: string;
+  additionalDirectives?: string[];
+  sample?: {
+    before: string;
+    after: string;
+    note?: string;
+  };
 };
 
 type StrictEnforcementLevel = "standard" | "reinforced" | "maximum";
@@ -35,6 +41,25 @@ export const writingStylePresets: Record<WritingStyle, StylePreset> = {
       "文体は常に『です・ます調』に統一し、終止形は「です」「ます」で終わるようにしてください。",
     strictToneInstruction:
       "常体（だ・である 等）の語尾が残らないように確認し、すべての文末を「です」「ます」などの丁寧語で終わらせてください。",
+  },
+  humanize: {
+    label: "人間らしい構成最適化",
+    description:
+      "段落構成や接続詞を整えて、自然で読みやすい文章にブラッシュアップします。",
+    toneInstruction:
+      "文体は自然で温度感のある標準的な日本語とし、機械的な言い回しや不必要な反復を避けてください。",
+    additionalDirectives: [
+      "段落の切れ目や話題のまとまりを整理し、必要に応じて段落を分割または結合してください。",
+      "要点が伝わりやすくなるよう、接続詞や指示語を補ったり語順を整えたりして文章の流れを滑らかにしてください。",
+      "意味や事実関係を変えずに、語尾・助詞・表現のぎこちなさを自然な言い回しへ調整してください。",
+    ],
+    sample: {
+      before:
+        "昨日は雨で外に出るのをやめようと思った。友人との約束があったので行った。帰るころには疲れていて、そのまま寝た。",
+      after:
+        "昨日は雨だったので外出を迷いましたが、友人との約束があったため出かけました。用事を終えるころにはすっかり疲れており、帰宅後はすぐに休みました。",
+      note: "段落や接続詞を整え、内容は変えずに読みやすさを高めた例です。",
+    },
   },
 };
 
@@ -222,6 +247,14 @@ function buildPrompt({
 
   if (strictMode && preset.strictToneInstruction) {
     instructions.push(`- ${preset.strictToneInstruction}`);
+  }
+
+  if (Array.isArray(preset.additionalDirectives)) {
+    for (const directive of preset.additionalDirectives) {
+      if (typeof directive === "string" && directive.trim().length > 0) {
+        instructions.push(`- ${directive.trim()}`);
+      }
+    }
   }
 
   instructions.push(`- ${punctuationInstruction}`);

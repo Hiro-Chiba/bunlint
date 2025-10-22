@@ -503,6 +503,24 @@ export function TextEditor() {
     applyHistoryEntry(targetEntry, mode, messageOverride);
   };
 
+  const handleDeleteHistoryEntry = (entryId: string) => {
+    let wasRemoved = false;
+
+    setHistoryEntries((current) => {
+      const next = current.filter((entry) => entry.id !== entryId);
+      wasRemoved = next.length !== current.length;
+      return wasRemoved ? next : current;
+    });
+
+    if (!wasRemoved) {
+      setStatusMessage("指定された履歴が見つかりませんでした。");
+      return;
+    }
+
+    setActiveHistoryEntryId((current) => (current === entryId ? null : current));
+    setStatusMessage("選択した履歴を削除しました。");
+  };
+
   const handleUndoLastTransform = () => {
     if (!latestHistoryEntry) {
       setStatusMessage("巻き戻し可能なAI変換が見つかりませんでした。");
@@ -670,6 +688,7 @@ export function TextEditor() {
         activeEntryId={activeHistoryEntryId}
         onRestore={handleRestoreFromHistory}
         isRestoreDisabled={isTransforming}
+        onDeleteEntry={handleDeleteHistoryEntry}
       />
     </div>
   );

@@ -22,6 +22,7 @@ import {
 import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
 import { diffWords, type DiffSegment } from "@/lib/diff";
 import { getNextJstMidnight, isSameJstDate } from "@/lib/jst";
+import { resolveNextDailyCount } from "@/lib/ai-limit";
 
 import {
   HistoryList,
@@ -794,20 +795,13 @@ export function TextEditor() {
           ? successPayload.reasoning.trim()
           : DEFAULT_AI_REASONING[confidence];
       const checkedAt: string = successPayload.checkedAt;
-      const reportedDailyCount =
-        typeof successPayload.dailyCheckCount === "number" &&
-        Number.isFinite(successPayload.dailyCheckCount)
-          ? Math.min(
-              DAILY_AI_CHECK_LIMIT,
-              Math.max(1, Math.floor(successPayload.dailyCheckCount)),
-            )
-          : null;
-      const nextDailyCount =
-        reportedDailyCount !== null
-          ? reportedDailyCount
-          : lastAiCheckAt && isSameJstDate(lastAiCheckAt, checkedAt)
-          ? Math.min(aiChecksToday + 1, DAILY_AI_CHECK_LIMIT)
-          : 1;
+      const nextDailyCount = resolveNextDailyCount({
+        reportedDailyCount: successPayload.dailyCheckCount,
+        previousCount: aiChecksToday,
+        lastCheckedAt: lastAiCheckAt,
+        currentCheckedAt: checkedAt,
+        dailyLimit: DAILY_AI_CHECK_LIMIT,
+      });
 
       const result: AiCheckResultState = {
         score,

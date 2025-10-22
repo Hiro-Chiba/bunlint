@@ -11,7 +11,7 @@ import {
   type PunctuationCharacter,
   type PunctuationMode,
 } from "@/lib/punctuation";
-import { getTextStats } from "@/lib/text";
+import { extractWords, getTextStats } from "@/lib/text";
 import {
   writingStylePresets,
   normalizeWritingStyle,
@@ -104,19 +104,60 @@ const AI_CONFIDENCE_PRESENTATION: Record<
 
 const wordSegmentSplitter = /([\s]+)/;
 
-type WordSegment = {
+type HighlightSegment = {
   value: string;
-  isWhitespace: boolean;
+  type: "word" | "separator";
 };
 
-const createWordSegments = (value: string): WordSegment[] =>
-  value
-    .split(wordSegmentSplitter)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => ({
-      value: segment,
-      isWhitespace: /\s+/.test(segment),
-    }));
+const createWordSegments = (value: string): HighlightSegment[] => {
+  if (value.length === 0) {
+    return [];
+  }
+
+  const words = extractWords(value);
+  if (words.length === 0) {
+    return value
+      .split(wordSegmentSplitter)
+      .filter((segment) => segment.length > 0)
+      .map((segment) => ({
+        value: segment,
+        type: /\s+/.test(segment) ? "separator" : "word",
+      }));
+  }
+
+  const segments: HighlightSegment[] = [];
+  let cursor = 0;
+
+  for (const word of words) {
+    const index = value.indexOf(word, cursor);
+    if (index === -1) {
+      return value
+        .split(wordSegmentSplitter)
+        .filter((segment) => segment.length > 0)
+        .map((segment) => ({
+          value: segment,
+          type: /\s+/.test(segment) ? "separator" : "word",
+        }));
+    }
+
+    if (index > cursor) {
+      const separator = value.slice(cursor, index);
+      if (separator.length > 0) {
+        segments.push({ value: separator, type: "separator" });
+      }
+    }
+
+    const token = value.slice(index, index + word.length);
+    segments.push({ value: token, type: "word" });
+    cursor = index + word.length;
+  }
+
+  if (cursor < value.length) {
+    segments.push({ value: value.slice(cursor), type: "separator" });
+  }
+
+  return segments;
+};
 
 const toDisplayValue = (segment: string) =>
   segment.replace(/ /g, "\u00A0").replace(/\t/g, "\u00A0\u00A0\u00A0\u00A0");
@@ -310,12 +351,16 @@ export function TextEditor() {
 
     const segments = createWordSegments(text);
 
+    if (segments.length === 0) {
+      return null;
+    }
+
     return segments.map((segment, index) => (
       <span
         key={`word-${index}`}
         className={clsx(
           "box-decoration-clone rounded-sm",
-          segment.isWhitespace
+          segment.type === "separator"
             ? "bg-emerald-100/70"
             : "bg-emerald-200/70 px-1",
         )}
@@ -324,7 +369,7 @@ export function TextEditor() {
       </span>
     ));
   }, [highlightMode, text]);
-  const shouldShowHighlightOverlay = highlightOverlayContent !== null;
+  const shouldShowHighlightOverlay = Boolean(highlightOverlayContent);
   const textareaClassName = clsx(
     "min-h-[16rem] w-full resize-y rounded-md border border-slate-200 p-3 text-sm leading-relaxed shadow-inner focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
     shouldShowHighlightOverlay

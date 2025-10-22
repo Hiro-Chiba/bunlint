@@ -169,6 +169,220 @@ const PARTICLE_EXCEPTION_WORDS = new Set([
   "どれぐらい",
 ]);
 
+const FUNCTION_WORD_ALLOW_LIST = new Set<string>([
+  ...HIRAGANA_PREFIX_ALLOW_LIST,
+  ...PARTICLE_EXCEPTION_WORDS,
+]);
+
+const AUXILIARY_WORDS = [
+  "だ",
+  "だっ",
+  "だろ",
+  "だろう",
+  "です",
+  "でし",
+  "でした",
+  "でしょう",
+  "でしょ",
+  "でござい",
+  "でございます",
+  "でござった",
+  "ます",
+  "まし",
+  "ました",
+  "ません",
+  "ましょう",
+  "ましょ",
+  "ませ",
+  "たい",
+  "たく",
+  "たかった",
+  "たがる",
+  "たがっ",
+  "たがり",
+  "ない",
+  "なかっ",
+  "なかった",
+  "なく",
+  "なけれ",
+  "なさ",
+  "なさい",
+  "ぬ",
+  "ん",
+  "んだ",
+  "んです",
+  "んですが",
+  "んですか",
+  "んで",
+  "れる",
+  "られる",
+  "られ",
+  "られた",
+  "られます",
+  "れた",
+  "れます",
+  "せる",
+  "させる",
+  "させられる",
+  "そう",
+  "そうだ",
+  "そうです",
+  "そうな",
+  "そうに",
+  "そうで",
+  "らしい",
+  "らしく",
+  "らしさ",
+  "よう",
+  "ようだ",
+  "ように",
+  "ような",
+  "ようです",
+  "みたい",
+  "みたいだ",
+  "みたいに",
+  "みたいな",
+  "っぽい",
+  "っぽく",
+  "っぽさ",
+  "げ",
+  "げな",
+  "げに",
+  "がる",
+  "がって",
+  "がった",
+  "がり",
+  "ず",
+  "まい",
+  "べき",
+  "べく",
+  "べし",
+  "しまう",
+  "しまった",
+  "しまい",
+  "ちゃう",
+  "ちゃった",
+  "じゃう",
+  "じゃった",
+  "た",
+  "たら",
+  "たり",
+  "たろう",
+  "った",
+  "って",
+  "て",
+  "てる",
+  "てた",
+  "てきた",
+  "てしまう",
+  "ください",
+  "下さい",
+  "な",
+  "たち",
+  "ざる",
+  "ざれ",
+  "ざら",
+];
+
+const AUXILIARY_WORD_SET = new Set(AUXILIARY_WORDS);
+
+const AUXILIARY_MIXED_WORD_SET = new Set(["下さい"]);
+
+const AUXILIARY_SUFFIXES = [
+  "くない",
+  "くなかった",
+  "くなく",
+  "すぎる",
+  "すぎた",
+  "すぎ",
+  "づらい",
+  "づらく",
+  "づらかった",
+  "にくい",
+  "にくく",
+  "にくかった",
+  "がたい",
+  "がたく",
+  "がたかった",
+  "させる",
+  "させられる",
+  "させられ",
+  "される",
+  "され",
+  "させて",
+  "されて",
+  "たち",
+  "ちゃう",
+  "ちゃった",
+  "じゃう",
+  "じゃった",
+  "っぽい",
+  "っぽく",
+  "っぽさ",
+];
+
+const CONJUNCTION_WORDS = [
+  "そして",
+  "しかし",
+  "しかしながら",
+  "だけど",
+  "だけれども",
+  "だが",
+  "ですが",
+  "だから",
+  "なので",
+  "ゆえに",
+  "よって",
+  "それで",
+  "それでも",
+  "それなのに",
+  "それなら",
+  "それでは",
+  "すると",
+  "ところが",
+  "しかも",
+  "さらに",
+  "および",
+  "及び",
+  "ならびに",
+  "並びに",
+  "かつ",
+  "もしくは",
+  "または",
+  "あるいは",
+  "一方",
+  "一方で",
+];
+
+const CONJUNCTION_WORD_SET = new Set(CONJUNCTION_WORDS);
+
+const INTERJECTION_WORDS = [
+  "はい",
+  "いいえ",
+  "うん",
+  "ええ",
+  "ああ",
+  "おお",
+  "わあ",
+  "へえ",
+  "おや",
+  "まあ",
+  "やあ",
+  "おっ",
+  "おっと",
+  "あっ",
+  "おい",
+  "ねえ",
+  "ほら",
+  "よし",
+  "ふう",
+  "はあ",
+];
+
+const INTERJECTION_WORD_SET = new Set(INTERJECTION_WORDS);
+
+const punctuationLikePattern = /^[\p{Punctuation}\p{Symbol}]+$/u;
+
 function splitGraphemes(text: string): string[] {
   if (!graphemeSegmenter) {
     return Array.from(text);
@@ -441,7 +655,7 @@ function splitTokenConsideringParticles(
   return { tokens, sawContent };
 }
 
-function mergeSegments(values: string[]): string[] {
+function mergeSegments(values: SegmentEntry[]): string[] {
   const merged: string[] = [];
   let buffer = "";
   let bufferType: SegmentKind | null = null;
@@ -456,9 +670,14 @@ function mergeSegments(values: string[]): string[] {
     bufferType = null;
   };
 
-  for (const value of values) {
+  for (const entry of values) {
+    const { value, breakBefore } = entry;
     if (!value) {
       continue;
+    }
+
+    if (breakBefore) {
+      flushBuffer();
     }
 
     const type = detectSegmentKind(value);
@@ -472,6 +691,17 @@ function mergeSegments(values: string[]): string[] {
 
       if (bufferType === "hiragana") {
         buffer += value;
+        continue;
+      }
+
+      if (
+        bufferType === "kanji" &&
+        !breakBefore &&
+        /\p{Script=Hiragana}/u.test(buffer) &&
+        (value === "て" || value === "で")
+      ) {
+        buffer += value;
+        bufferType = "hiragana";
         continue;
       }
 
@@ -525,7 +755,12 @@ function separateParticles(values: string[]): string[] {
   return result;
 }
 
-function buildWordsFromSegments(segments: string[]): string[] {
+type SegmentEntry = {
+  value: string;
+  breakBefore: boolean;
+};
+
+function buildWordsFromSegments(segments: SegmentEntry[]): string[] {
   if (segments.length === 0) {
     return [];
   }
@@ -535,42 +770,195 @@ function buildWordsFromSegments(segments: string[]): string[] {
   return separated.filter((token) => token.length > 0);
 }
 
-function collectWordsUsingSegmenter(text: string): string[] {
+function collectWordsUsingSegmenter(text: string): SegmentEntry[] {
   if (!wordSegmenter) {
     return [];
   }
 
   const rawSegments = Array.from(wordSegmenter.segment(text));
-  const wordLikeValues = rawSegments
-    .filter((segment) => segment.isWordLike)
-    .map((segment) => segment.segment.trim())
-    .filter((segment) => segment.length > 0);
+  const entries: SegmentEntry[] = [];
+  let previousEnd = 0;
+  let hasPreviousWord = false;
 
-  return buildWordsFromSegments(wordLikeValues);
-}
+  for (const segment of rawSegments) {
+    if (!segment.isWordLike) {
+      continue;
+    }
 
-function collectWordsWithFallback(text: string): string[] {
-  const matches = text.match(fallbackWordPattern);
-  if (!matches) {
-    return [];
+    const rawValue = segment.segment;
+    let startOffset = 0;
+    let endOffset = rawValue.length;
+
+    while (startOffset < endOffset && /\s/u.test(rawValue[startOffset]!)) {
+      startOffset += 1;
+    }
+
+    while (endOffset > startOffset && /\s/u.test(rawValue[endOffset - 1]!)) {
+      endOffset -= 1;
+    }
+
+    if (startOffset === endOffset) {
+      continue;
+    }
+
+    const value = rawValue.slice(startOffset, endOffset);
+    const trimmedStart = segment.index + startOffset;
+    const trimmedEnd = segment.index + endOffset;
+    const breakBefore =
+      hasPreviousWord && trimmedStart > previousEnd;
+
+    entries.push({ value, breakBefore });
+    hasPreviousWord = true;
+    previousEnd = trimmedEnd;
   }
 
-  return buildWordsFromSegments(matches);
+  return entries;
+}
+
+function collectWordsWithFallback(text: string): SegmentEntry[] {
+  const matches = text.matchAll(fallbackWordPattern);
+  const entries: SegmentEntry[] = [];
+  let previousEnd = 0;
+  let hasPreviousMatch = false;
+
+  for (const match of matches) {
+    const value = match[0];
+    if (!value) {
+      continue;
+    }
+
+    const index = match.index;
+    if (typeof index !== "number") {
+      continue;
+    }
+
+    const breakBefore = hasPreviousMatch && index > previousEnd;
+    entries.push({ value, breakBefore });
+    hasPreviousMatch = true;
+    previousEnd = index + value.length;
+  }
+
+  return entries;
 }
 
 function splitWords(text: string): string[] {
   const segmented = collectWordsUsingSegmenter(text);
   if (segmented.length > 0) {
-    return segmented;
+    return buildWordsFromSegments(segmented);
   }
 
-  return collectWordsWithFallback(text);
+  return buildWordsFromSegments(collectWordsWithFallback(text));
+}
+
+function shouldTreatParticleAsContent(
+  token: string,
+  _previousToken: string | null,
+  nextToken: string | null,
+): boolean {
+  if (token === "よ") {
+    if (nextToken && /^か/u.test(nextToken)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAuxiliaryToken(token: string, previousToken: string | null): boolean {
+  if (FUNCTION_WORD_ALLOW_LIST.has(token)) {
+    return false;
+  }
+
+  if (AUXILIARY_WORD_SET.has(token) || AUXILIARY_MIXED_WORD_SET.has(token)) {
+    if (token === "した" && previousToken !== "で") {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (!hiraganaOnlyPattern.test(token)) {
+    return false;
+  }
+
+  for (const suffix of AUXILIARY_SUFFIXES) {
+    if (token.endsWith(suffix) && token.length > suffix.length) {
+      return true;
+    }
+  }
+
+  if (token === "した" && previousToken === "で") {
+    return true;
+  }
+
+  return false;
+}
+
+function isFunctionWord(
+  token: string,
+  previousToken: string | null,
+  nextToken: string | null,
+): boolean {
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  if (punctuationLikePattern.test(trimmed)) {
+    return true;
+  }
+
+  if (!isJapaneseWord(trimmed)) {
+    return false;
+  }
+
+  if (PARTICLE_SET.has(trimmed)) {
+    if (shouldTreatParticleAsContent(trimmed, previousToken, nextToken)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (CONJUNCTION_WORD_SET.has(trimmed)) {
+    return true;
+  }
+
+  if (INTERJECTION_WORD_SET.has(trimmed)) {
+    return true;
+  }
+
+  if (FUNCTION_WORD_ALLOW_LIST.has(trimmed)) {
+    return false;
+  }
+
+  return isAuxiliaryToken(trimmed, previousToken);
+}
+
+function filterContentWords(tokens: string[]): string[] {
+  const filtered: string[] = [];
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token) {
+      continue;
+    }
+
+    const previous = index > 0 ? tokens[index - 1] ?? null : null;
+    const next = index + 1 < tokens.length ? tokens[index + 1] ?? null : null;
+
+    if (!isFunctionWord(token, previous, next)) {
+      filtered.push(token);
+    }
+  }
+
+  return filtered;
 }
 
 export type TextStats = {
   /** 文字数。結合文字やサロゲートペアも1文字としてカウントする。 */
   characters: number;
-  /** 単語数。空白文字で分割したトークンの数を返す。 */
+  /** 内容語数。助詞や助動詞などの機能語を除いた語の数。 */
   words: number;
   /** 文の数。句読点・終端記号で区切った文を数える。 */
   sentences: number;
@@ -598,22 +986,31 @@ export function countCharacters(
 }
 
 /**
- * 単語数をカウントする。Intl.Segmenterが利用可能な場合は単語境界を推定し、
- * それ以外の環境では空白や句読点で区切ったトークン数を用いる。
+ * 内容語のリストを抽出する。Intl.Segmenterが利用可能な場合は語の境界を推定し、
+ * それ以外の環境では空白や句読点で区切ったトークンを用いる。
+ * 助詞・助動詞などの機能語はフィルタリングする。
  */
-export function countWords(text: string): number {
+export function extractWords(text: string): string[] {
   const normalized = text.replace(/\s+/gu, " ").trim();
   if (!normalized) {
-    return 0;
+    return [];
   }
 
   const words = splitWords(normalized);
   if (words.length > 0) {
-    return words.length;
+    return filterContentWords(words);
   }
 
   const tokens = normalized.match(/\S+/gu);
-  return tokens ? tokens.length : 0;
+  return filterContentWords(tokens ?? []);
+}
+
+/**
+ * 内容語数をカウントする。Intl.Segmenterが利用可能な場合は語の境界を推定し、
+ * それ以外の環境では空白や句読点で区切ったトークンを用いる。
+ */
+export function countWords(text: string): number {
+  return extractWords(text).length;
 }
 
 /**
@@ -637,7 +1034,7 @@ export function countSentences(text: string): number {
 }
 
 /**
- * 文字数・単語数・文数をまとめて返す。
+ * 文字数・内容語数・文数をまとめて返す。
  */
 export function getTextStats(
   text: string,

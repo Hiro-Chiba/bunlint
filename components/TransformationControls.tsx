@@ -58,10 +58,13 @@ export function TransformationControls({
   const fromSelectId = useId();
   const toSelectId = useId();
   const sampleContentId = useId();
+  const individualContentId = useId();
+  const individualHeadingId = useId();
 
   const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
   const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
   const [isSampleOpen, setIsSampleOpen] = useState(false);
+  const [isIndividualOpen, setIsIndividualOpen] = useState(true);
   const activePreset = writingStylePresets[writingStyle];
 
   const handleIndividualReplace = () => {
@@ -104,57 +107,82 @@ export function TransformationControls({
           )}
         </div>
 
-        <div className="mt-6 rounded-md border border-slate-100 bg-slate-50 p-3">
-          <h4 className="text-xs font-semibold text-slate-600">
-            句読点を個別に変換
-          </h4>
-          <p className="mt-1 text-xs text-slate-500">
-            「,」「.」「、」「。」などの記号を指定して置き換えられます。
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="block" htmlFor={fromSelectId}>
-              <span className="text-xs font-medium text-slate-500">変換元</span>
-              <select
-                id={fromSelectId}
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                value={fromCharacter}
-                onChange={(event) =>
-                  setFromCharacter(event.target.value as PunctuationCharacter)
-                }
-              >
-                {punctuationSelectOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block" htmlFor={toSelectId}>
-              <span className="text-xs font-medium text-slate-500">変換先</span>
-              <select
-                id={toSelectId}
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                value={toCharacter}
-                onChange={(event) =>
-                  setToCharacter(event.target.value as PunctuationCharacter)
-                }
-              >
-                {punctuationSelectOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <div className="mt-6 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white/60 px-3 py-2 sm:justify-between">
+            <h4
+              id={individualHeadingId}
+              className="flex-shrink-0 whitespace-nowrap text-xs font-semibold text-slate-600"
+            >
+              句読点を個別に変換
+            </h4>
+            <button
+              type="button"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-transparent px-2 py-1 text-[11px] font-medium text-brand-600 transition-colors hover:border-brand-200 hover:bg-brand-50"
+              onClick={() => setIsIndividualOpen((prev) => !prev)}
+              aria-expanded={isIndividualOpen}
+              aria-controls={individualContentId}
+              aria-label={`句読点を個別に変換セクションを${
+                isIndividualOpen ? "折りたたむ" : "表示"
+              }`}
+            >
+              {isIndividualOpen ? "折りたたむ" : "表示"}
+            </button>
           </div>
-          <button
-            type="button"
-            className="mt-3 inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-            onClick={handleIndividualReplace}
-            disabled={!onPunctuationCharacterReplace}
-          >
-            指定した記号に変換
-          </button>
+          {isIndividualOpen && (
+            <div
+              id={individualContentId}
+              className="space-y-3 px-3 pb-3 pt-2"
+              aria-labelledby={individualHeadingId}
+            >
+              <p className="text-xs text-slate-500">
+                「,」「.」「、」「。」などの記号を指定して置き換えられます。
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block" htmlFor={fromSelectId}>
+                  <span className="text-xs font-medium text-slate-500">変換元</span>
+                  <select
+                    id={fromSelectId}
+                    className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                    value={fromCharacter}
+                    onChange={(event) =>
+                      setFromCharacter(event.target.value as PunctuationCharacter)
+                    }
+                  >
+                    {punctuationSelectOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block" htmlFor={toSelectId}>
+                  <span className="text-xs font-medium text-slate-500">変換先</span>
+                  <select
+                    id={toSelectId}
+                    className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                    value={toCharacter}
+                    onChange={(event) =>
+                      setToCharacter(event.target.value as PunctuationCharacter)
+                    }
+                  >
+                    {punctuationSelectOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                onClick={handleIndividualReplace}
+                disabled={!onPunctuationCharacterReplace}
+              >
+                指定した記号に変換
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

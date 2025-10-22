@@ -1,3 +1,5 @@
+import type React from "react";
+
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 import { HISTORY_RETENTION_MINUTES } from "@/lib/history/constants";
 import type { PunctuationMode } from "@/lib/punctuation";
@@ -20,6 +22,7 @@ type HistoryListProps = {
   activeEntryId?: string | null;
   onRestore?: (entryId: string, mode: HistoryRestoreMode) => void;
   isRestoreDisabled?: boolean;
+  onDeleteEntry?: (entryId: string) => void;
 };
 
 const retentionLabel =
@@ -28,6 +31,26 @@ const retentionLabel =
     : `${HISTORY_RETENTION_MINUTES}分`;
 
 const retentionMessage = `保存から${retentionLabel}で自動削除されます。`;
+
+function TrashIcon({ className, ...props }: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 5.25h16.5M9.75 5.25l.75-1.5h3l.75 1.5M18 5.25v13.5a1.5 1.5 0 0 1-1.5 1.5H7.5a1.5 1.5 0 0 1-1.5-1.5V5.25m3 4.5v6m4.5-6v6"
+      />
+    </svg>
+  );
+}
 
 function HistorySectionHeader() {
   return (
@@ -44,6 +67,7 @@ export function HistoryList({
   activeEntryId = null,
   onRestore,
   isRestoreDisabled = false,
+  onDeleteEntry,
 }: HistoryListProps) {
   const punctuationModeLabels: Record<PunctuationMode, string> = {
     academic: "学術",
@@ -93,11 +117,26 @@ export function HistoryList({
               key={entry.id}
               className={cardClassName}
             >
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{new Date(entry.createdAt).toLocaleString("ja-JP")}</span>
-                <span>
-                  {writingStyleLabel} / {punctuationModeLabels[entry.punctuationMode]}
+              <div className="flex items-start justify-between gap-2 text-xs text-slate-500">
+                <span className="leading-relaxed">
+                  {new Date(entry.createdAt).toLocaleString("ja-JP")}
                 </span>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <span>
+                    {writingStyleLabel} / {punctuationModeLabels[entry.punctuationMode]}
+                  </span>
+                  {onDeleteEntry && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteEntry(entry.id)}
+                      aria-label="この履歴を削除"
+                      className="rounded-md border border-transparent p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:ring-offset-1"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      <span className="sr-only">この履歴を削除</span>
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-3 grid gap-3 text-xs">
                 <div>

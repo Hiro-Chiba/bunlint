@@ -426,7 +426,7 @@ const AI_CHECKER_PROMPT = [
   "0はほぼ人間による文章、100はほぼAIによる文章を意味します。",
   "結果は必ず次のJSON形式のみで返してください。余計な文章や説明は含めないでください。",
   '{"score": <0-100の整数>, "confidence": "<low|medium|high>", "reasoning": "<日本語での根拠>"}',
-  "confidenceは推定結果の確度を表します。low=AIらしさが低い、medium=判断が難しい、high=AIらしさが高いという意味で使用してください。",
+  "confidenceは推定したAIらしさのレベルを表します。low=AIらしさが低い、medium=判断が難しい、high=AIらしさが高いという意味で使用してください。",
 ].join("\n");
 
 const DEFAULT_REASONING_BY_CONFIDENCE: Record<AiConfidenceLevel, string> = {

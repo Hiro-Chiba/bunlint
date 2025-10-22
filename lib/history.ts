@@ -1,6 +1,6 @@
 import "server-only";
 
-import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
+import { normalizeWritingStyle, type WritingStyle } from "@/lib/gemini";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 import { DatabaseQueryError, type DatabaseClient, getDatabaseClient } from "./db";
@@ -39,15 +39,14 @@ const PUNCTUATION_MODES: readonly PunctuationMode[] = [
 const isPunctuationMode = (value: string): value is PunctuationMode =>
   (PUNCTUATION_MODES as readonly string[]).includes(value);
 
-const isWritingStyle = (value: string): value is WritingStyle =>
-  Object.prototype.hasOwnProperty.call(writingStylePresets, value);
-
 const mapRowToRecord = (
   row: TransformHistoryRow,
 ): TransformHistoryRecord => {
   const { id, input_text, output_text, writing_style, punctuation_mode, created_at } = row;
 
-  if (!isWritingStyle(writing_style)) {
+  const normalizedStyle = normalizeWritingStyle(writing_style);
+
+  if (!normalizedStyle) {
     throw new DatabaseQueryError(
       `未対応の語尾スタイル値を検出しました: ${writing_style}`,
     );
@@ -65,7 +64,7 @@ const mapRowToRecord = (
     id,
     inputText: input_text,
     outputText: output_text ?? "",
-    writingStyle: writing_style,
+    writingStyle: normalizedStyle,
     punctuationMode: punctuation_mode,
     createdAt,
   };

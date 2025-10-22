@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 
 import {
   normalizeGeminiOutput,
+  normalizeWritingStyle,
   validateWritingStyleCompliance,
 } from "../lib/gemini";
 
@@ -55,6 +56,27 @@ describe("validateWritingStyleCompliance", () => {
 
     assert.deepStrictEqual(result, { ok: true });
   });
+
+  test("人間らしい変換（だ・である）でも常体チェックを行う", () => {
+    const result = validateWritingStyleCompliance(
+      "最終的な結論である。補足も終わった。",
+      "humanize_dearu",
+    );
+
+    assert.deepStrictEqual(result, { ok: true });
+  });
+
+  test("人間らしい変換（だ・である）に丁寧語が混ざれば失敗する", () => {
+    const result = validateWritingStyleCompliance(
+      "結論です。補足である。",
+      "humanize_dearu",
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.offendingSentences.includes("結論です。"));
+    }
+  });
 });
 
 describe("normalizeGeminiOutput", () => {
@@ -83,5 +105,24 @@ describe("normalizeGeminiOutput", () => {
     );
 
     assert.equal(normalized, "了解しました。次に進めます。");
+  });
+
+  test("人間らしい変換（だ・である）でも冒頭の了解文を除去する", () => {
+    const normalized = normalizeGeminiOutput(
+      "了解しました。以下が整えた文章です。これは報告である。",
+      "humanize_dearu",
+    );
+
+    assert.equal(normalized, "これは報告である。");
+  });
+});
+
+describe("normalizeWritingStyle", () => {
+  test("最新のスタイル名はそのまま返す", () => {
+    assert.equal(normalizeWritingStyle("humanize_dearu"), "humanize_dearu");
+  });
+
+  test("旧スタイル名humanizeをです・ます変換に読み替える", () => {
+    assert.equal(normalizeWritingStyle("humanize"), "humanize_desumasu");
   });
 });

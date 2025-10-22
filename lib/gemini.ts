@@ -1,6 +1,10 @@
 import { convertPunctuation, type PunctuationMode } from "./punctuation";
 
-export type WritingStyle = "dearu" | "desumasu" | "humanize";
+export type WritingStyle =
+  | "dearu"
+  | "desumasu"
+  | "humanize_dearu"
+  | "humanize_desumasu";
 
 export type StylePreset = {
   label: string;
@@ -42,12 +46,14 @@ export const writingStylePresets: Record<WritingStyle, StylePreset> = {
     strictToneInstruction:
       "常体（だ・である 等）の語尾が残らないように確認し、すべての文末を「です」「ます」などの丁寧語で終わらせてください。",
   },
-  humanize: {
-    label: "人間らしい構成",
+  humanize_desumasu: {
+    label: "人間らしい変換（です・ます）",
     description:
-      "段落の構成や接続詞を整えることで、自然で読みやすい文章にブラッシュアップします。",
+      "段落構成や接続詞を整えつつ、丁寧で自然な語り口に整えるモードです。",
     toneInstruction:
-      "文体は自然で温度感のある標準的な日本語とし、機械的な言い回しや不必要な反復を避けてください。",
+      "文体は常に『です・ます調』に統一し、終止形は「です」「ます」で終わるようにしてください。",
+    strictToneInstruction:
+      "常体（だ・である 等）の語尾が残らないように確認し、すべての文末を「です」「ます」などの丁寧語で終わらせてください。",
     additionalDirectives: [
       "段落の切れ目や話題のまとまりを整理し、必要に応じて段落を分割または結合してください。",
       "要点が伝わりやすくなるよう、接続詞や指示語を補ったり語順を整えたりして文章の流れを滑らかにしてください。",
@@ -61,7 +67,92 @@ export const writingStylePresets: Record<WritingStyle, StylePreset> = {
       note: "段落や接続詞を整え、内容は変えずに読みやすさを高めた例です。",
     },
   },
+  humanize_dearu: {
+    label: "人間らしい変換（だ・である）",
+    description:
+      "論理的な構成と常体の語尾を両立させ、硬さを抑えた自然な文章に調整します。",
+    toneInstruction:
+      "文体は常に『だ・である調』に統一し、丁寧語やですます調を使用しないでください。",
+    strictToneInstruction:
+      "丁寧語の語尾（です・ます・でした など）が一切残らないようにし、各文末を「だ」「である」「ではない」「であった」などの常体で統一してください。",
+    additionalDirectives: [
+      "段落の切れ目や話題のまとまりを整理し、必要に応じて段落を分割または結合してください。",
+      "要点が伝わりやすくなるよう、接続詞や指示語を補ったり語順を整えたりして文章の流れを滑らかにしてください。",
+      "意味や事実関係を変えずに、語尾・助詞・表現のぎこちなさを自然な言い回しへ調整してください。",
+    ],
+    sample: {
+      before:
+        "昨日は雨で外に出るのをやめようと思った。友人との約束があったので行った。帰るころには疲れていて、そのまま寝た。",
+      after:
+        "昨日は雨だったため外出を迷ったが、友人との約束があったので出かけた。用事を終えるころにはすっかり疲れており、帰宅後はすぐに休んだ。",
+      note: "常体を維持しながら段落構成と接続を滑らかに整えた例です。",
+    },
+  },
 };
+
+const WRITING_STYLE_VALUES = Object.keys(writingStylePresets) as WritingStyle[];
+
+const LEGACY_WRITING_STYLE_ALIASES: Record<string, WritingStyle> = {
+  humanize: "humanize_desumasu",
+};
+
+const LEGACY_WRITING_STYLE_LABELS: Record<string, WritingStyle> = {
+  人間らしい構成: "humanize_desumasu",
+};
+
+const DEARU_STYLE_SET = new Set<WritingStyle>(["dearu", "humanize_dearu"]);
+
+const isDearuStyle = (style: WritingStyle): boolean =>
+  DEARU_STYLE_SET.has(style);
+
+export const writingStyleSelectGroups: Array<{
+  label: string;
+  styles: WritingStyle[];
+}> = [
+  { label: "基本の語尾スタイル", styles: ["desumasu", "dearu"] },
+  {
+    label: "人間らしい文章構成",
+    styles: ["humanize_desumasu", "humanize_dearu"],
+  },
+];
+
+export function isWritingStyle(value: unknown): value is WritingStyle {
+  return typeof value === "string" && WRITING_STYLE_VALUES.includes(value as WritingStyle);
+}
+
+export function normalizeWritingStyle(value: unknown): WritingStyle | null {
+  if (isWritingStyle(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value in LEGACY_WRITING_STYLE_ALIASES) {
+    return LEGACY_WRITING_STYLE_ALIASES[value];
+  }
+
+  return null;
+}
+
+export function resolveWritingStyleFromLabel(
+  label: unknown,
+): WritingStyle | null {
+  if (typeof label !== "string" || !label) {
+    return null;
+  }
+
+  for (const [value, preset] of Object.entries(writingStylePresets) as Array<
+    [WritingStyle, (typeof writingStylePresets)[WritingStyle]]
+  >) {
+    if (preset.label === label) {
+      return value;
+    }
+  }
+
+  if (label in LEGACY_WRITING_STYLE_LABELS) {
+    return LEGACY_WRITING_STYLE_LABELS[label];
+  }
+
+  return null;
+}
 
 export type GeminiTransformRequest = {
   inputText: string;
@@ -332,7 +423,7 @@ function getStrictReinforcementInstructions(
   writingStyle: WritingStyle,
   enforcementLevel: StrictEnforcementLevel
 ): string[] {
-  if (writingStyle !== "dearu") {
+  if (!isDearuStyle(writingStyle)) {
     return [];
   }
 
@@ -621,7 +712,7 @@ export async function transformTextWithGemini({
 
   const baseTemperature = temperature;
   const attemptConfigs: AttemptConfig[] =
-    writingStyle === "dearu"
+    isDearuStyle(writingStyle)
       ? [
           {
             strictMode: false,
@@ -690,7 +781,7 @@ export async function transformTextWithGemini({
     lastOffendingSentences = validation.offendingSentences;
 
     if (
-      writingStyle === "dearu" &&
+      isDearuStyle(writingStyle) &&
       attemptIndex === attemptConfigs.length - 1 &&
       attemptConfigs.length < MAX_DEARU_ATTEMPTS
     ) {
@@ -894,7 +985,7 @@ export function validateWritingStyleCompliance(
   text: string,
   writingStyle: WritingStyle
 ): StyleValidationResult {
-  if (writingStyle !== "dearu") {
+  if (!isDearuStyle(writingStyle)) {
     return { ok: true };
   }
 
@@ -944,7 +1035,7 @@ function removeLeadingAcknowledgementSentences(
   text: string,
   writingStyle: WritingStyle
 ): string {
-  if (writingStyle !== "dearu") {
+  if (!isDearuStyle(writingStyle)) {
     return text.trim();
   }
 

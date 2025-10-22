@@ -48,6 +48,20 @@ const AI_CONFIDENCE_BADGE_CLASSES: Record<AiConfidenceLevel, string> = {
   high: "border-rose-200 bg-rose-100 text-rose-700",
 };
 
+type AiLikelihoodLevel = "low" | "medium" | "high";
+
+const AI_LIKELIHOOD_LABELS: Record<AiLikelihoodLevel, string> = {
+  low: "AIらしさ: 低め",
+  medium: "AIらしさ: 中程度",
+  high: "AIらしさ: 高め",
+};
+
+const AI_LIKELIHOOD_BADGE_CLASSES: Record<AiLikelihoodLevel, string> = {
+  low: "border-emerald-200 bg-emerald-100 text-emerald-700",
+  medium: "border-amber-200 bg-amber-100 text-amber-700",
+  high: "border-rose-200 bg-rose-100 text-rose-700",
+};
+
 const DEFAULT_AI_REASONING: Record<AiConfidenceLevel, string> = {
   low: "AI生成らしさは低いと判断されました。",
   medium: "AI生成らしさは中程度と判断されました。",
@@ -78,6 +92,18 @@ const isAiConfidenceLevel = (
   value === "low" || value === "medium" || value === "high";
 
 const inferConfidenceFromScore = (score: number): AiConfidenceLevel => {
+  if (score >= 66) {
+    return "high";
+  }
+
+  if (score >= 34) {
+    return "medium";
+  }
+
+  return "low";
+};
+
+const getAiLikelihoodLevel = (score: number): AiLikelihoodLevel => {
   if (score >= 66) {
     return "high";
   }
@@ -841,6 +867,10 @@ export function TextEditor() {
       ? aiCheckResult
       : null;
 
+  const aiLikelihoodLevelForCurrentText = aiResultForCurrentText
+    ? getAiLikelihoodLevel(aiResultForCurrentText.score)
+    : null;
+
   const hasCheckedOnSameDay =
     typeof lastAiCheckAt === "string" && lastAiCheckAt
       ? isSameJstDate(lastAiCheckAt, new Date())
@@ -871,6 +901,11 @@ export function TextEditor() {
   const latestHistoryTimestamp = latestHistoryEntry
     ? new Date(latestHistoryEntry.createdAt).toLocaleString("ja-JP")
     : "";
+
+  const latestHistoryAiLikelihoodLevel =
+    latestHistoryEntry && typeof latestHistoryEntry.aiScore === "number"
+      ? getAiLikelihoodLevel(Math.round(latestHistoryEntry.aiScore))
+      : null;
 
   const punctuationModeLabels: Record<PunctuationMode, string> = {
     academic: "学術",
@@ -1105,6 +1140,13 @@ export function TextEditor() {
                   <span className="text-lg font-bold text-emerald-700">
                     {aiResultForCurrentText.score}%
                   </span>
+                  {aiLikelihoodLevelForCurrentText && (
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_LIKELIHOOD_BADGE_CLASSES[aiLikelihoodLevelForCurrentText]}`}
+                    >
+                      {AI_LIKELIHOOD_LABELS[aiLikelihoodLevelForCurrentText]}
+                    </span>
+                  )}
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_CONFIDENCE_BADGE_CLASSES[aiResultForCurrentText.confidence]}`}
                   >
@@ -1166,6 +1208,13 @@ export function TextEditor() {
                 <span className="text-lg font-bold text-emerald-700">
                   {Math.round(latestHistoryEntry.aiScore)}%
                 </span>
+                {latestHistoryAiLikelihoodLevel && (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_LIKELIHOOD_BADGE_CLASSES[latestHistoryAiLikelihoodLevel]}`}
+                  >
+                    {AI_LIKELIHOOD_LABELS[latestHistoryAiLikelihoodLevel]}
+                  </span>
+                )}
                 {latestHistoryEntry.aiConfidence && (
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${AI_CONFIDENCE_BADGE_CLASSES[latestHistoryEntry.aiConfidence]}`}

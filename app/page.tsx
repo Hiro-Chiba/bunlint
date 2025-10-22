@@ -12,7 +12,7 @@ export default function HomePage() {
         </h1>
         <p className="max-w-3xl text-base text-slate-600">
           文章の句読点スタイルや語尾のトーンを整え、統計情報をチェックできるエディタです。
-          AIを用いた語尾変換と句読点変換に対応しています。
+          AIを用いた語尾変換・AIチェッカー・句読点変換に対応しています。
         </p>
       </header>
       <TextEditor />

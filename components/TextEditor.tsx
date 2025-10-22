@@ -14,6 +14,7 @@ import {
 import { getTextStats } from "@/lib/text";
 import { writingStylePresets, type WritingStyle } from "@/lib/gemini";
 import { diffWords, type DiffSegment } from "@/lib/diff";
+import { clampScore } from "@/lib/jst";
 
 import { HistoryList, type HistoryEntry } from "./HistoryList";
 import { StatsPanel } from "./StatsPanel";
@@ -102,6 +103,7 @@ const normalizeHistoryEntry = (value: unknown): HistoryEntry | null => {
     writingStyleLabel,
     punctuationMode: record.punctuationMode,
     createdAt: record.createdAt,
+    aiUsageRate: normalizeAiUsageRate(record.aiUsageRate),
   };
 };
 
@@ -114,6 +116,54 @@ type TransformSuccessResponse = {
 
 type TransformErrorResponse = {
   error: string;
+};
+
+type AiCheckerSuccessResponse = {
+  score: number;
+  label: string;
+  explanation: string;
+  checkedAt: string;
+};
+
+type AiCheckerErrorResponse = {
+  error: string;
+};
+
+type AiCheckerResult = {
+  score: number;
+  label: string;
+  explanation: string;
+  checkedAt: string;
+};
+
+type AiScoreTone = "low" | "medium" | "high";
+
+const normalizeAiUsageRate = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return clampScore(value);
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return clampScore(parsed);
+    }
+  }
+
+  return null;
+};
+
+const resolveAiScoreTone = (score: number): AiScoreTone => {
+  const normalized = clampScore(score);
+  if (normalized >= 75) {
+    return "high";
+  }
+
+  if (normalized >= 40) {
+    return "medium";
+  }
+
+  return "low";
 };
 
 export function TextEditor() {
@@ -131,14 +181,38 @@ export function TextEditor() {
   const [isUserInitialized, setIsUserInitialized] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
+  const [aiCheckerResult, setAiCheckerResult] = useState<AiCheckerResult | null>(null);
+  const [aiCheckerError, setAiCheckerError] = useState<string | null>(null);
+  const [isAiChecking, setIsAiChecking] = useState(false);
 
   const editorTitleId = useId();
   const editorDescriptionId = useId();
   const statusMessageId = useId();
   const diffTitleId = useId();
   const diffDescriptionId = useId();
+  const aiCheckerTitleId = useId();
+  const aiCheckerDescriptionId = useId();
+  const aiCheckerStatusId = useId();
 
   const stats = useMemo(() => getTextStats(text), [text]);
+
+  const canRunAiCheck = text.trim().length > 0;
+  const aiCheckerTone = aiCheckerResult
+    ? resolveAiScoreTone(aiCheckerResult.score)
+    : null;
+  const aiCheckerBadgeClass = aiCheckerTone
+    ? clsx(
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+        aiCheckerTone === "low" &&
+          "border-emerald-200 bg-emerald-50 text-emerald-700",
+        aiCheckerTone === "medium" &&
+          "border-amber-200 bg-amber-50 text-amber-700",
+        aiCheckerTone === "high" && "border-rose-200 bg-rose-50 text-rose-700",
+      )
+    : undefined;
+  const aiCheckerDescribedBy = aiCheckerError
+    ? `${aiCheckerDescriptionId} ${aiCheckerStatusId}`
+    : aiCheckerDescriptionId;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -263,6 +337,8 @@ export function TextEditor() {
     setPunctuationMode(detectPunctuationMode(value));
     setStatusMessage(null);
     setDiffSegments(null);
+    setAiCheckerResult(null);
+    setAiCheckerError(null);
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -274,6 +350,8 @@ export function TextEditor() {
     setText(converted);
     setPunctuationMode(mode);
     setDiffSegments(null);
+    setAiCheckerResult(null);
+    setAiCheckerError(null);
     const statusMessages: Record<PunctuationMode, string> = {
       academic: "句読点を学術スタイル（，．）に変換しました。",
       japanese: "句読点を和文スタイル（、。）に変換しました。",
@@ -306,6 +384,8 @@ export function TextEditor() {
     setText(converted);
     setPunctuationMode(detectPunctuationMode(converted));
     setDiffSegments(null);
+    setAiCheckerResult(null);
+    setAiCheckerError(null);
     setStatusMessage(`「${from}」を「${to}」に変換しました。`);
   };
 
@@ -322,6 +402,8 @@ export function TextEditor() {
     const previousText = text;
     setIsTransforming(true);
     setStatusMessage("AI変換を実行しています...");
+    setAiCheckerResult(null);
+    setAiCheckerError(null);
 
     try {
       const response = await fetch("/api/transform", {
@@ -390,6 +472,7 @@ export function TextEditor() {
         writingStyleLabel,
         punctuationMode: result.punctuationMode,
         createdAt: new Date().toISOString(),
+        aiUsageRate: null,
       };
 
       setHistoryEntries((current) => {
@@ -403,6 +486,115 @@ export function TextEditor() {
       );
     } finally {
       setIsTransforming(false);
+    }
+  };
+
+  const updateHistoryWithAiScore = (score: number) => {
+    setHistoryEntries((current) => {
+      if (current.length === 0) {
+        return current;
+      }
+
+      const normalizedScore = clampScore(score);
+      let updated = false;
+      const next = current.map((entry) => {
+        if (!updated && entry.outputText === text) {
+          updated = true;
+          return { ...entry, aiUsageRate: normalizedScore };
+        }
+        return entry;
+      });
+
+      if (updated) {
+        return next;
+      }
+
+      const [first, ...rest] = next;
+      if (!first) {
+        return next;
+      }
+
+      return [{ ...first, aiUsageRate: normalizedScore }, ...rest];
+    });
+  };
+
+  const handleInvokeAiCheck = async () => {
+    if (isAiChecking) {
+      return;
+    }
+
+    if (!text.trim()) {
+      setAiCheckerError("AIチェッカーを実行するテキストを入力してください。");
+      return;
+    }
+
+    setIsAiChecking(true);
+    setAiCheckerError(null);
+
+    try {
+      const response = await fetch("/api/ai-checker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputText: text,
+        }),
+      });
+
+      let payload: AiCheckerSuccessResponse | AiCheckerErrorResponse | null = null;
+
+      try {
+        payload = (await response.json()) as
+          | AiCheckerSuccessResponse
+          | AiCheckerErrorResponse;
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          payload && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "AIチェッカーの実行に失敗しました。時間をおいて再度お試しください。";
+        setAiCheckerError(errorMessage);
+        return;
+      }
+
+      if (!payload || !("score" in payload)) {
+        setAiCheckerError("AIチェッカーの結果を取得できませんでした。");
+        return;
+      }
+
+      const sanitizedScore = clampScore(payload.score);
+      const explanation =
+        typeof payload.explanation === "string" && payload.explanation.trim().length > 0
+          ? payload.explanation.trim()
+          : "AIチェッカーの説明を取得できませんでした。";
+      const label =
+        typeof payload.label === "string" && payload.label.trim().length > 0
+          ? payload.label.trim()
+          : "AIチェッカー結果";
+      const checkedAt =
+        typeof payload.checkedAt === "string" && payload.checkedAt
+          ? payload.checkedAt
+          : new Date().toISOString();
+
+      const result: AiCheckerResult = {
+        score: sanitizedScore,
+        label,
+        explanation,
+        checkedAt,
+      };
+
+      setAiCheckerResult(result);
+      setStatusMessage(null);
+      updateHistoryWithAiScore(sanitizedScore);
+    } catch (error) {
+      console.error("AI checker request failed", error);
+      setAiCheckerError(
+        "AIチェッカーの実行中に通信エラーが発生しました。しばらく時間をおいて再度お試しください。",
+      );
+    } finally {
+      setIsAiChecking(false);
     }
   };
 
@@ -482,6 +674,61 @@ export function TextEditor() {
             </section>
           )}
           <StatsPanel stats={stats} />
+          <section
+            className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+            aria-labelledby={aiCheckerTitleId}
+            aria-describedby={aiCheckerDescriptionId}
+          >
+            <header className="space-y-1">
+              <h3
+                id={aiCheckerTitleId}
+                className="text-sm font-semibold text-slate-700"
+              >
+                AIチェッカー
+              </h3>
+              <p id={aiCheckerDescriptionId} className="text-xs text-slate-500">
+                現在のテキストがAI生成らしいかを診断します。日本時間で1日に1度だけ実行できます。
+              </p>
+            </header>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-md border border-brand-500 px-4 py-2 text-sm font-semibold text-brand-600 shadow-sm transition-colors hover:bg-brand-50 disabled:border-slate-300 disabled:text-slate-400"
+                onClick={handleInvokeAiCheck}
+                disabled={isAiChecking || !canRunAiCheck}
+                aria-describedby={aiCheckerDescribedBy}
+                aria-busy={isAiChecking || undefined}
+              >
+                {isAiChecking ? "診断中..." : "AIらしさを診断"}
+              </button>
+              {aiCheckerResult && aiCheckerBadgeClass && (
+                <span className={aiCheckerBadgeClass}>
+                  AI利用率 {aiCheckerResult.score}%
+                </span>
+              )}
+            </div>
+            {aiCheckerError && (
+              <p
+                id={aiCheckerStatusId}
+                role="status"
+                className="text-sm text-rose-600"
+              >
+                {aiCheckerError}
+              </p>
+            )}
+            {aiCheckerResult && (
+              <div className="space-y-2 text-sm text-slate-600">
+                <p className="font-semibold text-slate-700">
+                  {aiCheckerResult.label}
+                </p>
+                <p>{aiCheckerResult.explanation}</p>
+                <p className="text-xs text-slate-400">
+                  診断日時：
+                  {new Date(aiCheckerResult.checkedAt).toLocaleString("ja-JP")}
+                </p>
+              </div>
+            )}
+          </section>
         </section>
         <TransformationControls
           punctuationMode={punctuationMode}

@@ -70,7 +70,7 @@ function normalizeModelName(model: string): string {
   return model.trim().replace(/^models\//, "").replace(/\s+/g, "-");
 }
 
-function resolveGeminiModel(): string {
+export function resolveGeminiModel(): string {
   const envModel = process.env.GEMINI_MODEL;
 
   if (typeof envModel === "string" && envModel.trim().length > 0) {
@@ -80,7 +80,7 @@ function resolveGeminiModel(): string {
   return DEFAULT_GEMINI_MODEL;
 }
 
-function resolveGeminiApiVersions(): string[] {
+export function resolveGeminiApiVersions(): string[] {
   const envVersions = process.env.GEMINI_API_VERSION;
 
   if (typeof envVersions === "string" && envVersions.trim().length > 0) {
@@ -97,7 +97,7 @@ function resolveGeminiApiVersions(): string[] {
   return [...DEFAULT_API_VERSIONS];
 }
 
-function shouldRetryWithNextVersion(error: GeminiError): boolean {
+export function shouldRetryWithNextVersion(error: GeminiError): boolean {
   if (error.status === 404) {
     return true;
   }
@@ -284,7 +284,7 @@ function getStrictReinforcementInstructions(
   return instructions;
 }
 
-function extractTextFromResponse(data: any): string | null {
+export function extractTextFromResponse(data: any): string | null {
   const candidate = data?.candidates?.[0];
   if (!candidate) {
     return null;

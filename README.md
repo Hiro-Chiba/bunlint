@@ -29,6 +29,15 @@ echo "GEMINI_MODEL=gemini-2.0-flash" >> .env.local         # 任意のモデル�
 echo "GEMINI_API_VERSION=v1" >> .env.local                 # 複数指定する場合はカンマ区切り
 ```
 
+## デプロイ URL
+
+- Vercel: https://example-vercel-deployment-url.vercel.app
+
+## スクリーンショット
+
+`docs/screenshots` ディレクトリにスクリーンショット画像（例: `overview.png`）を配置してください。
+必要に応じてこのセクションからリンクを追加できます。
+
 ## 実装済みの主な機能
 
 - **テキスト統計 (`lib/text.ts`)**

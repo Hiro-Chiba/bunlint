@@ -7,3 +7,5 @@ export type AiCheckResultState = {
   checkedAt: string;
   textSnapshot: string;
 };
+
+export type StatsHighlightMode = "none" | "words";

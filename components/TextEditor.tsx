@@ -245,7 +245,6 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
-  const highlightMode = "none" as const;
   const [isHighAccuracyModalOpen, setIsHighAccuracyModalOpen] =
     useState(false);
   const [highAccuracyCode, setHighAccuracyCode] = useState("");
@@ -1336,18 +1335,31 @@ export function TextEditor() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
-        <EditorTextareaSection
-          text={text}
-          onTextChange={handleTextChange}
-          statusMessage={statusMessage}
-          statusMessageId={statusMessageId}
-          editorTitleId={editorTitleId}
-          editorDescriptionId={editorDescriptionId}
-          diffSegments={diffSegments}
-          diffTitleId={diffTitleId}
-          diffDescriptionId={diffDescriptionId}
-          highlightMode={highlightMode}
-        />
+        <div className="flex flex-col gap-4">
+          <EditorTextareaSection
+            text={text}
+            onTextChange={handleTextChange}
+            statusMessage={statusMessage}
+            statusMessageId={statusMessageId}
+            editorTitleId={editorTitleId}
+            editorDescriptionId={editorDescriptionId}
+            diffSegments={diffSegments}
+            diffTitleId={diffTitleId}
+            diffDescriptionId={diffDescriptionId}
+          />
+          <AiCheckerSection
+            text={text}
+            isCheckingAi={isCheckingAi}
+            hasCheckedOnSameDay={hasCheckedOnSameDay}
+            hasReachedDailyLimit={hasReachedDailyLimit}
+            remainingAiChecks={remainingAiChecks}
+            nextAiCheckLabel={nextAiCheckLabel}
+            aiCheckMessage={aiCheckMessage}
+            aiResult={aiResultForCurrentText}
+            onInvokeAiCheck={handleInvokeAiCheck}
+            dailyLimit={DAILY_AI_CHECK_LIMIT}
+          />
+        </div>
         <TransformationControls
           punctuationMode={punctuationMode}
           onPunctuationModeChange={handlePunctuationModeChange}

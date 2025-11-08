@@ -245,6 +245,8 @@ function buildModelAttemptOrder({
 
   if (normalizedBase === DEFAULT_GEMINI_MODEL) {
     order.push(GEMINI_FLASH_MODEL);
+  } else if (normalizedBase === GEMINI_FLASH_MODEL) {
+    order.push(DEFAULT_GEMINI_MODEL);
   }
 
   return Array.from(new Set(order.map(normalizeModelName)));
@@ -543,13 +545,14 @@ async function executeGeminiRequest({
           }
 
           if (shouldFallbackToAlternateModel(error)) {
-            break;
+            continue;
           }
         }
 
         throw error;
       }
     }
+
   }
 
   if (errors.length > 0) {

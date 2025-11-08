@@ -6,6 +6,15 @@ import { POST as aiCheckRoute } from "../app/api/ai-check/route";
 
 const { GeminiError, parseAiCheckerResponse } = GeminiModule;
 const ORIGINAL_API_KEY = process.env.GEMINI_API_KEY;
+const ORIGINAL_MODEL = process.env.GEMINI_MODEL;
+
+const restoreGeminiModelEnv = () => {
+  if (typeof ORIGINAL_MODEL === "string") {
+    process.env.GEMINI_MODEL = ORIGINAL_MODEL;
+  } else {
+    delete process.env.GEMINI_MODEL;
+  }
+};
 
 describe("parseAiCheckerResponse", () => {
   test("JSONレスポンスを正しく解析する", () => {
@@ -56,6 +65,139 @@ describe("analyzeAiLikelihoodWithGemini", () => {
       } finally {
         globalThis.fetch = originalFetch;
         process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
+        restoreGeminiModelEnv();
+      }
+    },
+  );
+
+  test(
+    "v1betaがリソース枯渇の場合は同モデルのv1へフォールバックする",
+    { concurrency: false },
+    async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      const originalFetch = globalThis.fetch;
+      const callHistory: Array<{ model: string; version: string }> = [];
+
+      globalThis.fetch = async (input) => {
+        const url = new URL(String(input));
+        const [, version, , modelWithSuffix] = url.pathname.split("/");
+        const model = modelWithSuffix?.split(":")[0] ?? "";
+
+        callHistory.push({ model, version });
+
+        if (callHistory.length === 1) {
+          return new Response(
+            JSON.stringify({
+              error: { message: "Resource exhausted. Please try again later." },
+            }),
+            { status: 429 },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: '{"score": 12, "confidence": "low", "reasoning": "テスト"}',
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      };
+
+      try {
+        const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
+          text: "テキスト",
+        });
+
+        assert.deepStrictEqual(result, {
+          score: 12,
+          confidence: "low",
+          reasoning: "テスト",
+        });
+
+        assert.deepStrictEqual(callHistory, [
+          { version: "v1beta", model: "gemini-2.0-flash-lite" },
+          { version: "v1", model: "gemini-2.0-flash-lite" },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
+        restoreGeminiModelEnv();
+      }
+    },
+  );
+
+  test(
+    "Gemini 2.0 Flashが枯渇した場合はFlash-Liteへフォールバックする",
+    { concurrency: false },
+    async () => {
+      process.env.GEMINI_API_KEY = "test-key";
+      process.env.GEMINI_MODEL = "gemini-2.0-flash";
+      const originalFetch = globalThis.fetch;
+      const callHistory: Array<{ model: string; version: string }> = [];
+
+      globalThis.fetch = async (input) => {
+        const url = new URL(String(input));
+        const [, version, , modelWithSuffix] = url.pathname.split("/");
+        const model = modelWithSuffix?.split(":")[0] ?? "";
+
+        callHistory.push({ model, version });
+
+        if (callHistory.length <= 2) {
+          return new Response(
+            JSON.stringify({
+              error: { message: "Resource exhausted. Please try again later." },
+            }),
+            { status: 429 },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: '{"score": 21, "confidence": "medium", "reasoning": "フォールバック成功"}',
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      };
+
+      try {
+        const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
+          text: "テキスト",
+        });
+
+        assert.deepStrictEqual(result, {
+          score: 21,
+          confidence: "medium",
+          reasoning: "フォールバック成功",
+        });
+
+        assert.deepStrictEqual(callHistory, [
+          { version: "v1beta", model: "gemini-2.0-flash" },
+          { version: "v1", model: "gemini-2.0-flash" },
+          { version: "v1beta", model: "gemini-2.0-flash-lite" },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
+        restoreGeminiModelEnv();
       }
     },
   );

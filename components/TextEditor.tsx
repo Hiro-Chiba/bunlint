@@ -18,7 +18,6 @@ import {
   type WritingStyle,
 } from "@/lib/gemini";
 import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
-import { diffWords, type DiffSegment } from "@/lib/diff";
 import { getNextJstMidnight, isSameJstDate } from "@/lib/jst";
 import { resolveNextDailyCount } from "@/lib/ai-limit";
 
@@ -28,7 +27,6 @@ import {
   type HistoryRestoreMode,
 } from "./HistoryList";
 import { TransformationControls } from "./TransformationControls";
-import type { StatsHighlightMode } from "./StatsPanel";
 import { DEFAULT_AI_REASONING } from "./text-editor/constants";
 import type { AiCheckResultState } from "./text-editor/types";
 import { EditorTextareaSection } from "./text-editor/EditorTextareaSection";
@@ -236,7 +234,6 @@ export function TextEditor() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isUserInitialized, setIsUserInitialized] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
-  const [diffSegments, setDiffSegments] = useState<DiffSegment[] | null>(null);
   const [activeHistoryEntryId, setActiveHistoryEntryId] = useState<
     string | null
   >(null);
@@ -247,8 +244,6 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
-  const [highlightMode, setHighlightMode] =
-    useState<StatsHighlightMode>("none");
   const [isHighAccuracyModalOpen, setIsHighAccuracyModalOpen] =
     useState(false);
   const [highAccuracyCode, setHighAccuracyCode] = useState("");
@@ -266,8 +261,6 @@ export function TextEditor() {
   const editorTitleId = useId();
   const editorDescriptionId = useId();
   const statusMessageId = useId();
-  const diffTitleId = useId();
-  const diffDescriptionId = useId();
 
   const stats = useMemo(() => getTextStats(text), [text]);
 
@@ -298,12 +291,6 @@ export function TextEditor() {
       console.error("高精度モードの状態取得に失敗しました", error);
     }
   }, []);
-
-  useEffect(() => {
-    if (text.length === 0 && highlightMode !== "none") {
-      setHighlightMode("none");
-    }
-  }, [highlightMode, text]);
 
   useEffect(() => {
     return () => {
@@ -673,18 +660,9 @@ export function TextEditor() {
     setText(value);
     setPunctuationMode(detectPunctuationMode(value));
     setStatusMessage(null);
-    setDiffSegments(null);
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
-  };
-
-  const handleHighlightChange = (mode: StatsHighlightMode) => {
-    if (mode !== "none" && text.length === 0) {
-      return;
-    }
-
-    setHighlightMode((current) => (current === mode ? current : mode));
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -695,7 +673,6 @@ export function TextEditor() {
     const converted = convertPunctuation(text, mode);
     setText(converted);
     setPunctuationMode(mode);
-    setDiffSegments(null);
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
@@ -732,7 +709,6 @@ export function TextEditor() {
 
     setText(converted);
     setPunctuationMode(detectPunctuationMode(converted));
-    setDiffSegments(null);
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
@@ -886,12 +862,6 @@ export function TextEditor() {
       const result = payload;
       setText(result.outputText);
       setPunctuationMode(result.punctuationMode);
-
-      const segments = diffWords(previousText, result.outputText);
-      const hasMeaningfulDiff = segments.some(
-        (segment) => segment.type !== "unchanged",
-      );
-      setDiffSegments(hasMeaningfulDiff ? segments : null);
 
       const preset =
         writingStylePresets[result.writingStyle] ??
@@ -1283,7 +1253,6 @@ export function TextEditor() {
       setAiCheckMessage(null);
     }
 
-    setDiffSegments(null);
     setActiveHistoryEntryId(entry.id);
   };
 
@@ -1363,12 +1332,7 @@ export function TextEditor() {
             statusMessageId={statusMessageId}
             editorTitleId={editorTitleId}
             editorDescriptionId={editorDescriptionId}
-            diffSegments={diffSegments}
-            diffTitleId={diffTitleId}
-            diffDescriptionId={diffDescriptionId}
             stats={stats}
-            highlightMode={highlightMode}
-            onHighlightChange={handleHighlightChange}
           />
           <AiCheckerSection
             text={text}

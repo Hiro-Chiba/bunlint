@@ -11,10 +11,10 @@ import {
 
 import clsx from "clsx";
 
-import { extractWords, type TextStats } from "@/lib/text";
+import { extractWords } from "@/lib/text";
 import type { DiffSegment } from "@/lib/diff";
 
-import { StatsPanel, type StatsHighlightMode } from "../StatsPanel";
+import type { StatsHighlightMode } from "./types";
 
 type EditorTextareaSectionProps = {
   text: string;
@@ -26,9 +26,7 @@ type EditorTextareaSectionProps = {
   diffSegments: DiffSegment[] | null;
   diffTitleId: string;
   diffDescriptionId: string;
-  stats: TextStats;
   highlightMode: StatsHighlightMode;
-  onHighlightChange: (mode: StatsHighlightMode) => void;
 };
 
 const wordSegmentSplitter = /([\s]+)/;
@@ -111,9 +109,7 @@ export function EditorTextareaSection({
   diffSegments,
   diffTitleId,
   diffDescriptionId,
-  stats,
   highlightMode,
-  onHighlightChange,
 }: EditorTextareaSectionProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const highlightOverlayContentRef = useRef<HTMLDivElement | null>(null);
@@ -315,7 +311,7 @@ export function EditorTextareaSection({
           テキストエディタ
         </h2>
         <p id={editorDescriptionId} className="text-sm text-slate-500">
-          テキストを入力すると、文字数や文数がリアルタイムに更新されます。
+          テキストを入力して句読点や語尾の変換を行えます。
         </p>
       </header>
       <div className="relative">
@@ -392,11 +388,6 @@ export function EditorTextareaSection({
           </div>
         </section>
       )}
-      <StatsPanel
-        stats={stats}
-        activeHighlight={highlightMode}
-        onHighlightChange={onHighlightChange}
-      />
     </section>
   );
 }

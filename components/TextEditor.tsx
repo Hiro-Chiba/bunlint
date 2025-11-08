@@ -9,7 +9,6 @@ import {
   type PunctuationCharacter,
   type PunctuationMode,
 } from "@/lib/punctuation";
-import { getTextStats } from "@/lib/text";
 import {
   writingStylePresets,
   normalizeWritingStyle,
@@ -28,7 +27,6 @@ import {
   type HistoryRestoreMode,
 } from "./HistoryList";
 import { TransformationControls } from "./TransformationControls";
-import type { StatsHighlightMode } from "./StatsPanel";
 import { DEFAULT_AI_REASONING } from "./text-editor/constants";
 import type { AiCheckResultState } from "./text-editor/types";
 import { EditorTextareaSection } from "./text-editor/EditorTextareaSection";
@@ -247,8 +245,6 @@ export function TextEditor() {
   const [isCheckingAi, setIsCheckingAi] = useState(false);
   const [lastAiCheckAt, setLastAiCheckAt] = useState<string | null>(null);
   const [aiChecksToday, setAiChecksToday] = useState(0);
-  const [highlightMode, setHighlightMode] =
-    useState<StatsHighlightMode>("none");
   const [isHighAccuracyModalOpen, setIsHighAccuracyModalOpen] =
     useState(false);
   const [highAccuracyCode, setHighAccuracyCode] = useState("");
@@ -268,8 +264,6 @@ export function TextEditor() {
   const statusMessageId = useId();
   const diffTitleId = useId();
   const diffDescriptionId = useId();
-
-  const stats = useMemo(() => getTextStats(text), [text]);
 
   const refreshHighAccuracyStatus = useCallback(async () => {
     try {
@@ -298,12 +292,6 @@ export function TextEditor() {
       console.error("高精度モードの状態取得に失敗しました", error);
     }
   }, []);
-
-  useEffect(() => {
-    if (text.length === 0 && highlightMode !== "none") {
-      setHighlightMode("none");
-    }
-  }, [highlightMode, text]);
 
   useEffect(() => {
     return () => {
@@ -677,14 +665,6 @@ export function TextEditor() {
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
-  };
-
-  const handleHighlightChange = (mode: StatsHighlightMode) => {
-    if (mode !== "none" && text.length === 0) {
-      return;
-    }
-
-    setHighlightMode((current) => (current === mode ? current : mode));
   };
 
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
@@ -1366,9 +1346,6 @@ export function TextEditor() {
             diffSegments={diffSegments}
             diffTitleId={diffTitleId}
             diffDescriptionId={diffDescriptionId}
-            stats={stats}
-            highlightMode={highlightMode}
-            onHighlightChange={handleHighlightChange}
           />
           <AiCheckerSection
             text={text}

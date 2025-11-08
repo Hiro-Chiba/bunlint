@@ -1333,7 +1333,7 @@ export function TextEditor() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="flex flex-col gap-4">
           <EditorTextareaSection
@@ -1373,6 +1373,18 @@ export function TextEditor() {
           isHighAccuracyActive={isHighAccuracyActive}
         />
       </div>
+      <AiCheckerSection
+        text={text}
+        isCheckingAi={isCheckingAi}
+        hasCheckedOnSameDay={hasCheckedOnSameDay}
+        hasReachedDailyLimit={hasReachedDailyLimit}
+        remainingAiChecks={remainingAiChecks}
+        nextAiCheckLabel={nextAiCheckLabel}
+        aiCheckMessage={aiCheckMessage}
+        aiResult={aiResultForCurrentText}
+        onInvokeAiCheck={handleInvokeAiCheck}
+        dailyLimit={DAILY_AI_CHECK_LIMIT}
+      />
       {latestHistoryEntry && (
         <LatestHistoryCard
           entry={latestHistoryEntry}

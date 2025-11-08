@@ -3,6 +3,7 @@
 import clsx from "clsx";
 
 import type { DiffSegment } from "@/lib/diff";
+import { countCharacters } from "@/lib/text";
 
 type EditorTextareaSectionProps = {
   text: string;
@@ -31,6 +32,11 @@ export function EditorTextareaSection({
     ? `${editorDescriptionId} ${statusMessageId}`
     : editorDescriptionId;
 
+  const totalCharacters = countCharacters(text);
+  const nonWhitespaceCharacters = countCharacters(text, {
+    excludeWhitespace: true,
+  });
+
   return (
     <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <header className="space-y-1">
@@ -51,6 +57,21 @@ export function EditorTextareaSection({
           aria-describedby={textareaDescribedBy}
         />
       </div>
+      <dl
+        className="grid gap-3 rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600"
+        aria-label="文字数情報"
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="font-medium text-slate-600">総文字数</dt>
+          <dd className="text-lg font-semibold text-slate-800">{totalCharacters}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="font-medium text-slate-600">空白除外</dt>
+          <dd className="text-lg font-semibold text-slate-800">
+            {nonWhitespaceCharacters}
+          </dd>
+        </div>
+      </dl>
       {statusMessage && (
         <div
           role="status"

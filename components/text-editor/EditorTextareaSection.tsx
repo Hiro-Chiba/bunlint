@@ -8,6 +8,7 @@ import { countCharacters } from "@/lib/text";
 type EditorTextareaSectionProps = {
   text: string;
   onTextChange: (value: string) => void;
+  onClear: () => void;
   statusMessage: string | null;
   statusMessageId: string;
   editorTitleId: string;
@@ -20,6 +21,7 @@ type EditorTextareaSectionProps = {
 export function EditorTextareaSection({
   text,
   onTextChange,
+  onClear,
   statusMessage,
   statusMessageId,
   editorTitleId,
@@ -39,10 +41,20 @@ export function EditorTextareaSection({
 
   return (
     <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <header className="space-y-1">
-        <h2 id={editorTitleId} className="text-lg font-semibold text-slate-800">
-          テキストエディタ
-        </h2>
+      <header className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id={editorTitleId} className="text-lg font-semibold text-slate-800">
+            テキストエディタ
+          </h2>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={text.length === 0}
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+          >
+            クリア
+          </button>
+        </div>
         <p id={editorDescriptionId} className="text-sm text-slate-500">
           テキストを入力して、句読点変換やAIチェックなどの機能をお試しください。
         </p>

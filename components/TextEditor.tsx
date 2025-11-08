@@ -667,6 +667,14 @@ export function TextEditor() {
     setAiCheckMessage(null);
   };
 
+  const handleClearText = () => {
+    if (text.length === 0) {
+      return;
+    }
+
+    handleTextChange("");
+  };
+
   const handlePunctuationModeChange = (mode: PunctuationMode) => {
     if (mode === punctuationMode) {
       return;
@@ -1339,6 +1347,7 @@ export function TextEditor() {
           <EditorTextareaSection
             text={text}
             onTextChange={handleTextChange}
+            onClear={handleClearText}
             statusMessage={statusMessage}
             statusMessageId={statusMessageId}
             editorTitleId={editorTitleId}

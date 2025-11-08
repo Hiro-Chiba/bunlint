@@ -1373,18 +1373,6 @@ export function TextEditor() {
           isHighAccuracyActive={isHighAccuracyActive}
         />
       </div>
-      <AiCheckerSection
-        text={text}
-        isCheckingAi={isCheckingAi}
-        hasCheckedOnSameDay={hasCheckedOnSameDay}
-        hasReachedDailyLimit={hasReachedDailyLimit}
-        remainingAiChecks={remainingAiChecks}
-        nextAiCheckLabel={nextAiCheckLabel}
-        aiCheckMessage={aiCheckMessage}
-        aiResult={aiResultForCurrentText}
-        onInvokeAiCheck={handleInvokeAiCheck}
-        dailyLimit={DAILY_AI_CHECK_LIMIT}
-      />
       {latestHistoryEntry && (
         <LatestHistoryCard
           entry={latestHistoryEntry}

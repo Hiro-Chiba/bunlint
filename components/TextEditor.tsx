@@ -31,7 +31,6 @@ import { DEFAULT_AI_REASONING } from "./text-editor/constants";
 import type { AiCheckResultState } from "./text-editor/types";
 import { EditorTextareaSection } from "./text-editor/EditorTextareaSection";
 import { AiCheckerSection } from "./text-editor/AiCheckerSection";
-import { LatestHistoryCard } from "./text-editor/LatestHistoryCard";
 import { HighAccuracyModal } from "./text-editor/HighAccuracyModal";
 
 const USER_ID_STORAGE_KEY = "bunlint:user-id";
@@ -1207,20 +1206,7 @@ export function TextEditor() {
   const isHighAccuracyActive = Boolean(highAccuracyStatusLabel);
 
   const latestHistoryEntry = historyEntries[0] ?? null;
-  const latestHistoryLabel = latestHistoryEntry
-    ? latestHistoryEntry.writingStyleLabel ||
-      writingStylePresets[latestHistoryEntry.writingStyle]?.label ||
-      latestHistoryEntry.writingStyle
-    : "";
-  const latestHistoryTimestamp = latestHistoryEntry
-    ? new Date(latestHistoryEntry.createdAt).toLocaleString("ja-JP")
-    : "";
-
-  const punctuationModeLabels: Record<PunctuationMode, string> = {
-    academic: "学術",
-    japanese: "和文",
-    western: "欧文",
-  };
+  const canUndoLastTransform = Boolean(latestHistoryEntry);
 
   const applyHistoryEntry = (
     entry: HistoryEntry,
@@ -1322,24 +1308,6 @@ export function TextEditor() {
     );
   };
 
-  const handleReapplyLastTransform = () => {
-    if (!latestHistoryEntry) {
-      setStatusMessage("再適用できるAI変換がありません。");
-      return;
-    }
-
-    const label =
-      latestHistoryEntry.writingStyleLabel ||
-      writingStylePresets[latestHistoryEntry.writingStyle]?.label ||
-      latestHistoryEntry.writingStyle;
-
-    applyHistoryEntry(
-      latestHistoryEntry,
-      "output",
-      `${label}の変換結果を再適用しました。`,
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
@@ -1348,6 +1316,9 @@ export function TextEditor() {
             text={text}
             onTextChange={handleTextChange}
             onClear={handleClearText}
+            onUndoLastTransform={handleUndoLastTransform}
+            canUndoLastTransform={canUndoLastTransform}
+            isTransforming={isTransforming}
             statusMessage={statusMessage}
             statusMessageId={statusMessageId}
             editorTitleId={editorTitleId}
@@ -1382,19 +1353,6 @@ export function TextEditor() {
           isHighAccuracyActive={isHighAccuracyActive}
         />
       </div>
-      {latestHistoryEntry && (
-        <LatestHistoryCard
-          entry={latestHistoryEntry}
-          writingStyleLabel={latestHistoryLabel}
-          timestampLabel={latestHistoryTimestamp}
-          punctuationModeLabel={
-            punctuationModeLabels[latestHistoryEntry.punctuationMode]
-          }
-          onUndo={handleUndoLastTransform}
-          onReapply={handleReapplyLastTransform}
-          isTransforming={isTransforming}
-        />
-      )}
       <HistoryList
         entries={historyEntries}
         isLoading={!hasLoadedHistory}

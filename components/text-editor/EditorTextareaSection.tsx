@@ -9,6 +9,9 @@ type EditorTextareaSectionProps = {
   text: string;
   onTextChange: (value: string) => void;
   onClear: () => void;
+  onUndoLastTransform: () => void;
+  canUndoLastTransform: boolean;
+  isTransforming: boolean;
   statusMessage: string | null;
   statusMessageId: string;
   editorTitleId: string;
@@ -22,6 +25,9 @@ export function EditorTextareaSection({
   text,
   onTextChange,
   onClear,
+  onUndoLastTransform,
+  canUndoLastTransform,
+  isTransforming,
   statusMessage,
   statusMessageId,
   editorTitleId,
@@ -46,14 +52,24 @@ export function EditorTextareaSection({
           <h2 id={editorTitleId} className="text-lg font-semibold text-slate-800">
             テキストエディタ
           </h2>
-          <button
-            type="button"
-            onClick={onClear}
-            disabled={text.length === 0}
-            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
-          >
-            クリア
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onUndoLastTransform}
+              disabled={!canUndoLastTransform || isTransforming}
+              className="inline-flex items-center justify-center rounded-md border border-brand-300 bg-white px-3 py-1.5 text-xs font-medium text-brand-700 shadow-sm transition-colors hover:border-brand-400 hover:text-brand-800 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+            >
+              直近の変換を戻す
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={text.length === 0}
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+            >
+              クリア
+            </button>
+          </div>
         </div>
         <p id={editorDescriptionId} className="text-sm text-slate-500">
           テキストを入力して、句読点変換やAIチェックなどの機能をお試しください。

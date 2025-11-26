@@ -91,7 +91,7 @@ export function TransformationControls({
       <div>
         <h3 className="text-sm font-semibold text-slate-700">句読点スタイル</h3>
         <p className="mt-1 text-xs text-slate-500">
-          ボタンを押すとテキスト全体の句読点を選択したスタイルに揃えます。
+          全文の句読点を選んだスタイルに揃えます。
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {(Object.keys(punctuationModeLabels) as Array<PunctuationMode>).map(
@@ -142,7 +142,7 @@ export function TransformationControls({
               aria-labelledby={individualHeadingId}
             >
               <p className="text-xs text-slate-500">
-                「,」「.」「、」「。」などの記号を指定して置き換えられます。
+                「,」「.」「、」「。」などを指定して置き換えられます。
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block" htmlFor={fromSelectId}>
@@ -370,7 +370,7 @@ export function TransformationControls({
               AIの精度を上げる
             </button>
             <p className="text-[11px] text-slate-500">
-              正しい暗号を入力すると10分間だけ高精度モードが有効になります。
+              暗号を入力すると10分間だけ高精度モードが有効になります。
             </p>
           </div>
           {highAccuracyStatusLabel ? (

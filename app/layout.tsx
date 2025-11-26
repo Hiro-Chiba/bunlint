@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 const siteTitle = "bunlint（ブンリント） | 日本語テキスト整形スタジオ";
 const siteDescription =
-  "bunlint（ブンリント）は、句読点スタイルの統一とAIを活用した語尾調整で文章をすばやく整えられる日本語向けエディタです。";
+  "句読点をそろえ、AI で語尾を整えられる日本語向けエディタです。ブラウザーで手早く文章をきれいにできます。";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bunlint.example.com"),

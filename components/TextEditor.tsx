@@ -656,14 +656,18 @@ export function TextEditor() {
     }
   }, [aiChecksToday, lastAiCheckAt]);
 
-  const handleTextChange = (value: string) => {
-    setText(value);
-    setPunctuationMode(detectPunctuationMode(value));
-    setStatusMessage(null);
+  const resetTransientStates = useCallback(() => {
     setDiffSegments(null);
     setActiveHistoryEntryId(null);
     setAiCheckResult(null);
     setAiCheckMessage(null);
+  }, []);
+
+  const handleTextChange = (value: string) => {
+    setText(value);
+    setPunctuationMode(detectPunctuationMode(value));
+    setStatusMessage(null);
+    resetTransientStates();
   };
 
   const handleClearText = () => {
@@ -682,10 +686,7 @@ export function TextEditor() {
     const converted = convertPunctuation(text, mode);
     setText(converted);
     setPunctuationMode(mode);
-    setDiffSegments(null);
-    setActiveHistoryEntryId(null);
-    setAiCheckResult(null);
-    setAiCheckMessage(null);
+    resetTransientStates();
     const statusMessages: Record<PunctuationMode, string> = {
       academic: "句読点を学術スタイル（，．）に変換しました。",
       japanese: "句読点を和文スタイル（、。）に変換しました。",
@@ -719,10 +720,7 @@ export function TextEditor() {
 
     setText(converted);
     setPunctuationMode(detectPunctuationMode(converted));
-    setDiffSegments(null);
-    setActiveHistoryEntryId(null);
-    setAiCheckResult(null);
-    setAiCheckMessage(null);
+    resetTransientStates();
     setStatusMessage(`「${from}」を「${to}」に変換しました。`);
   };
 

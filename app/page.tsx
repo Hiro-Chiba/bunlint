@@ -29,12 +29,12 @@ export default function HomePage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
               </span>
-              System Operational
+              稼働中
             </div>
             <button
               type="button"
               className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Settings"
+              aria-label="設定"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

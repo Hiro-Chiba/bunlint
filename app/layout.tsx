@@ -3,13 +3,13 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-const siteTitle = "bunlint（ブンリント） | 日本語テキスト整形スタジオ";
+const siteTitle = "Bun Checker | 日本語テキスト整形スタジオ";
 const siteDescription =
   "句読点をそろえ、AI で語尾を整えられる日本語向けエディタです。ブラウザーで手早く文章をきれいにできます。";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bunlint.example.com"),
-  applicationName: "bunlint（ブンリント）",
+  applicationName: "Bun Checker",
   title: siteTitle,
   description: siteDescription,
   keywords: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: siteDescription,
     type: "website",
     locale: "ja_JP",
-    siteName: "bunlint（ブンリント）",
+    siteName: "Bun Checker",
   },
   twitter: {
     card: "summary",

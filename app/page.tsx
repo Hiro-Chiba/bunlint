@@ -21,7 +21,7 @@ export default function HomePage() {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Bunlint</h1>
+            <h1 className="text-xl font-bold text-slate-900">Bun Checker</h1>
           </div>
           <div className="flex items-center gap-4">
             {/* Removed unused "Running" badge and "Settings" button */}

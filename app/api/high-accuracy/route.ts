@@ -34,7 +34,8 @@ export async function GET() {
     return NextResponse.json({ active: false }, { status: SUCCESS_STATUS });
   }
 
-  const token = cookies().get(HIGH_ACCURACY_COOKIE_NAME);
+  const cookieStore = await cookies();
+  const token = cookieStore.get(HIGH_ACCURACY_COOKIE_NAME);
 
   if (!token?.value) {
     return NextResponse.json({ active: false }, { status: SUCCESS_STATUS });

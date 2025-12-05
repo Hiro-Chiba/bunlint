@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const testsDir = join(rootDir, "tests");
@@ -42,7 +42,8 @@ if (testFiles.length === 0) {
 }
 
 const loaderPath = fileURLToPath(new URL("../loader.mjs", import.meta.url));
-const registerLoaderScript = `import { register } from "node:module";\nimport { pathToFileURL } from "node:url";\nregister(${JSON.stringify(loaderPath)}, pathToFileURL("./"));`;
+const loaderUrl = pathToFileURL(loaderPath).href;
+const registerLoaderScript = `import { register } from "node:module";\nimport { pathToFileURL } from "node:url";\nregister(${JSON.stringify(loaderUrl)}, pathToFileURL("./"));`;
 const loaderDataUrl = `data:text/javascript;base64,${Buffer.from(registerLoaderScript).toString("base64")}`;
 
 const child = spawn(

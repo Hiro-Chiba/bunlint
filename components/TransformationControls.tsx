@@ -60,328 +60,293 @@ export function TransformationControls({
   const helperId = useId();
   const fromSelectId = useId();
   const toSelectId = useId();
-  const sampleContentId = useId();
   const individualContentId = useId();
   const individualHeadingId = useId();
-  const presetListContentId = useId();
-  const presetListHeadingId = useId();
 
   const [fromCharacter, setFromCharacter] = useState<PunctuationCharacter>(",");
   const [toCharacter, setToCharacter] = useState<PunctuationCharacter>("、");
-  const [isSampleOpen, setIsSampleOpen] = useState(false);
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
-  const [isPresetListOpen, setIsPresetListOpen] = useState(false);
   const activePreset = writingStylePresets[writingStyle];
 
   const handleIndividualReplace = () => {
     if (!onPunctuationCharacterReplace) {
       return;
     }
-
     onPunctuationCharacterReplace(fromCharacter, toCharacter);
   };
 
-  useEffect(() => {
-    setIsSampleOpen(false);
-    setIsPresetListOpen(false);
-  }, [writingStyle]);
-
   return (
-    <section className="space-y-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-700">句読点スタイル</h3>
-        <p className="mt-1 text-xs text-slate-500">
-          全文の句読点を選んだスタイルに揃えます。
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(Object.keys(punctuationModeLabels) as Array<PunctuationMode>).map(
-            (mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => onPunctuationModeChange(mode)}
-                className={clsx(
-                  "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                  mode === punctuationMode
-                    ? "border-brand-500 bg-brand-500 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600",
-                )}
-                aria-pressed={mode === punctuationMode}
-              >
-                {punctuationModeLabels[mode]}
-              </button>
-            ),
-          )}
+    <div className="space-y-6">
+      {/* Punctuation Style Card */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <header className="mb-4 flex items-center gap-2">
+          <h3 className="font-bold text-slate-800">句読点スタイル</h3>
+        </header>
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => onPunctuationModeChange("japanese")}
+            className={clsx(
+              "flex w-full flex-col items-start rounded-lg border px-4 py-3 text-left transition-all",
+              punctuationMode === "japanese"
+                ? "border-slate-900 bg-slate-900 text-white shadow-md"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <span className="font-bold text-sm">標準 (Standard)</span>
+              <span className="font-mono text-xs opacity-70">、。</span>
+            </div>
+            <span className="mt-1 text-xs opacity-80">一般的な日本語文章</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPunctuationModeChange("academic")}
+            className={clsx(
+              "flex w-full flex-col items-start rounded-lg border px-4 py-3 text-left transition-all",
+              punctuationMode === "academic"
+                ? "border-slate-900 bg-slate-900 text-white shadow-md"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <span className="font-bold text-sm">理系・公用文</span>
+              <span className="font-mono text-xs opacity-70">，．</span>
+            </div>
+            <span className="mt-1 text-xs opacity-80">論文やレポート向け</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPunctuationModeChange("western")}
+            className={clsx(
+              "flex w-full flex-col items-start rounded-lg border px-4 py-3 text-left transition-all",
+              punctuationMode === "western"
+                ? "border-slate-900 bg-slate-900 text-white shadow-md"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <span className="font-bold text-sm">英文スタイル</span>
+              <span className="font-mono text-xs opacity-70">,.</span>
+            </div>
+            <span className="mt-1 text-xs opacity-80">横書きの欧文混じり</span>
+          </button>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white/60 px-3 py-2 sm:justify-between">
+        <div className="mt-4 text-right">
+          <button
+            type="button"
+            onClick={() => setIsIndividualOpen((prev) => !prev)}
+            aria-expanded={isIndividualOpen}
+            aria-controls={individualContentId}
+            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            個別設定を開く ›
+          </button>
+        </div>
+
+        {isIndividualOpen && (
+          <div
+            id={individualContentId}
+            className="mt-4 border-t border-slate-100 pt-4"
+            aria-labelledby={individualHeadingId}
+          >
             <h4
               id={individualHeadingId}
-              className="flex-shrink-0 whitespace-nowrap text-xs font-semibold text-slate-600"
+              className="mb-3 text-xs font-semibold text-slate-600"
             >
               句読点を個別に変換
             </h4>
-            <button
-              type="button"
-              className="inline-flex shrink-0 items-center gap-1 rounded border border-transparent px-2 py-1 text-[11px] font-medium text-brand-600 transition-colors hover:border-brand-200 hover:bg-brand-50"
-              onClick={() => setIsIndividualOpen((prev) => !prev)}
-              aria-expanded={isIndividualOpen}
-              aria-controls={individualContentId}
-              aria-label={`句読点を個別に変換セクションを${
-                isIndividualOpen ? "折りたたむ" : "表示"
-              }`}
-            >
-              {isIndividualOpen ? "折りたたむ" : "表示"}
-            </button>
-          </div>
-          {isIndividualOpen && (
-            <div
-              id={individualContentId}
-              className="space-y-3 px-3 pb-3 pt-2"
-              aria-labelledby={individualHeadingId}
-            >
-              <p className="text-xs text-slate-500">
-                「,」「.」「、」「。」などを指定して置き換えられます。
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block" htmlFor={fromSelectId}>
-                  <span className="text-xs font-medium text-slate-500">
-                    変換元
-                  </span>
-                  <select
-                    id={fromSelectId}
-                    className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                    value={fromCharacter}
-                    onChange={(event) =>
-                      setFromCharacter(
-                        event.target.value as PunctuationCharacter,
-                      )
-                    }
-                  >
-                    {punctuationSelectOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block" htmlFor={toSelectId}>
-                  <span className="text-xs font-medium text-slate-500">
-                    変換先
-                  </span>
-                  <select
-                    id={toSelectId}
-                    className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                    value={toCharacter}
-                    onChange={(event) =>
-                      setToCharacter(event.target.value as PunctuationCharacter)
-                    }
-                  >
-                    {punctuationSelectOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                onClick={handleIndividualReplace}
-                disabled={!onPunctuationCharacterReplace}
-              >
-                指定した記号に変換
-              </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block" htmlFor={fromSelectId}>
+                <span className="text-xs font-medium text-slate-500">
+                  変換元
+                </span>
+                <select
+                  id={fromSelectId}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  value={fromCharacter}
+                  onChange={(event) =>
+                    setFromCharacter(event.target.value as PunctuationCharacter)
+                  }
+                >
+                  {punctuationSelectOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block" htmlFor={toSelectId}>
+                <span className="text-xs font-medium text-slate-500">
+                  変換先
+                </span>
+                <select
+                  id={toSelectId}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  value={toCharacter}
+                  onChange={(event) =>
+                    setToCharacter(event.target.value as PunctuationCharacter)
+                  }
+                >
+                  {punctuationSelectOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-semibold text-slate-700">語尾スタイル</h3>
-        <p className="mt-1 text-xs text-slate-500" id={helperId}>
-          AIを利用して語尾やトーンを整えます。スタイルによって文章全体の印象が変わります。
-        </p>
-        <label className="mt-3 block" htmlFor={selectId}>
-          <span className="text-xs font-medium text-slate-500">スタイル</span>
-          <select
-            id={selectId}
-            className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            value={writingStyle}
-            aria-describedby={helperId}
-            onChange={(event) =>
-              onWritingStyleChange(event.target.value as WritingStyle)
-            }
-          >
-            {writingStyleSelectGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.styles.map((value) => (
-                  <option key={value} value={value}>
-                    {writingStylePresets[value].label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-        <div className="mt-3 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-          <div className="px-3 py-3 text-xs text-slate-500">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              選択中のスタイル
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-700">
-              {activePreset?.label ?? writingStyle}
-            </p>
-            {activePreset?.description ? (
-              <p className="mt-1 text-xs text-slate-600">
-                {activePreset.description}
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                このスタイルの説明は準備中です。
-              </p>
-            )}
-          </div>
-          <div className="border-t border-slate-100 bg-white/60 px-3 py-2">
             <button
               type="button"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 transition-colors hover:text-brand-700"
-              onClick={() => setIsPresetListOpen((prev) => !prev)}
-              aria-expanded={isPresetListOpen}
-              aria-controls={presetListContentId}
+              className="mt-3 w-full rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleIndividualReplace}
+              disabled={!onPunctuationCharacterReplace}
             >
-              {isPresetListOpen
-                ? "スタイル一覧を閉じる"
-                : "他のスタイルの説明を表示"}
+              指定した記号に変換
             </button>
-          </div>
-          {isPresetListOpen && (
-            <div
-              id={presetListContentId}
-              className="px-3 pb-3 pt-2"
-              aria-labelledby={presetListHeadingId}
-            >
-              <p
-                id={presetListHeadingId}
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                スタイル一覧
-              </p>
-              <ul className="mt-1 space-y-3 text-xs text-slate-500">
-                {writingStyleSelectGroups.map((group) => (
-                  <li key={group.label}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                      {group.label}
-                    </p>
-                    <ul className="mt-1 space-y-1">
-                      {group.styles.map((value) => {
-                        const preset = writingStylePresets[value];
-                        const isActive = value === writingStyle;
-                        return (
-                          <li
-                            key={value}
-                            className={clsx(
-                              "rounded px-2 py-1",
-                              isActive
-                                ? "bg-white text-brand-600"
-                                : "text-slate-600",
-                            )}
-                          >
-                            <span className="font-medium">{preset.label}</span>
-                            ：{preset.description}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-        {activePreset?.sample && (
-          <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded border border-slate-200 bg-white/60 px-3 py-2 text-left text-xs font-semibold text-slate-600 transition-colors hover:border-brand-300 hover:text-brand-600"
-              onClick={() => setIsSampleOpen((prev) => !prev)}
-              aria-expanded={isSampleOpen}
-              aria-controls={sampleContentId}
-            >
-              サンプルを{isSampleOpen ? "隠す" : "表示"}
-              <span className="ml-3 text-[11px] font-normal text-slate-500">
-                {activePreset.label}
-              </span>
-            </button>
-            {isSampleOpen && (
-              <div
-                id={sampleContentId}
-                className="mt-3 space-y-2 text-[11px] leading-relaxed text-slate-600"
-              >
-                <h4 className="text-xs font-semibold text-slate-600">
-                  サンプル（{activePreset.label}）
-                </h4>
-                {activePreset.sample.note ? (
-                  <p className="text-[11px] text-slate-500">
-                    {activePreset.sample.note}
-                  </p>
-                ) : null}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div>
-                    <span className="font-medium text-slate-500">変換前</span>
-                    <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
-                      {activePreset.sample.before}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-500">変換後</span>
-                    <p className="mt-1 whitespace-pre-line rounded border border-slate-200 bg-white/60 p-2 text-[11px] text-slate-600">
-                      {activePreset.sample.after}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
-        <button
-          type="button"
-          className="mt-4 inline-flex items-center justify-center rounded-md border border-brand-500 px-4 py-2 text-sm font-semibold text-brand-600 shadow-sm transition-colors hover:bg-brand-50 disabled:border-slate-300 disabled:text-slate-400"
-          disabled={!onInvokeStyleTransform || isTransforming}
-          onClick={onInvokeStyleTransform}
-          aria-busy={isTransforming || undefined}
-        >
-          {isTransforming ? "変換中..." : "語尾変換を実行"}
-        </button>
-        <div className="mt-3 flex flex-col gap-2 rounded-md border border-slate-100 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-1">
+      </section>
+
+      {/* Tone Card */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <header className="mb-4 flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5 text-slate-400"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <h3 className="font-bold text-slate-800">語尾・トーン</h3>
+        </header>
+
+        <div className="space-y-4">
+          <label className="block" htmlFor={selectId}>
+            <select
+              id={selectId}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              value={writingStyle}
+              aria-describedby={helperId}
+              onChange={(event) =>
+                onWritingStyleChange(event.target.value as WritingStyle)
+              }
+            >
+              {writingStyleSelectGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.styles.map((value) => (
+                    <option key={value} value={value}>
+                      {writingStylePresets[value].label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-700">
+              {activePreset?.label ?? writingStyle}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {activePreset?.description ?? "このスタイルの説明は準備中です。"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white py-3 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!onInvokeStyleTransform || isTransforming}
+            onClick={onInvokeStyleTransform}
+            aria-busy={isTransforming || undefined}
+          >
+            {isTransforming ? (
+              "変換中..."
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full border border-slate-400"></span>
+                変換を実行
+              </>
+            )}
+          </button>
+        </div>
+      </section>
+
+      {/* High Accuracy Card */}
+      <section className="relative overflow-hidden rounded-xl bg-slate-900 p-5 text-white shadow-lg">
+        <div className="relative z-10">
+          <header className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4 text-yellow-500"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <h3 className="font-bold text-white">高精度モード</h3>
+            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6 text-slate-700"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </header>
+
+          <p className="mb-6 text-xs leading-relaxed text-slate-400">
+            AIエンジンを最大能力で稼働させます。10分間限定のプロフェッショナル機能です。
+          </p>
+
+          {isHighAccuracyActive ? (
+            <div className="rounded bg-emerald-900/30 px-3 py-2 text-center text-sm font-bold text-emerald-400 border border-emerald-800">
+              {highAccuracyStatusLabel}
+            </div>
+          ) : (
             <button
               type="button"
               onClick={onOpenHighAccuracyModal}
-              className={clsx(
-                "inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-semibold transition-colors",
-                isHighAccuracyActive
-                  ? "border-emerald-500 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50"
-                  : "border-slate-300 bg-white text-slate-600 shadow-sm hover:border-brand-300 hover:text-brand-600",
-              )}
+              className="flex w-full items-center justify-between rounded bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
             >
-              AIの精度を上げる
+              アクセスコード
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
             </button>
-            <p className="text-[11px] text-slate-500">
-              暗号を入力すると10分間だけ高精度モードが有効になります。
-            </p>
-          </div>
-          {highAccuracyStatusLabel ? (
-            <p className="text-xs font-semibold text-emerald-700">
-              {highAccuracyStatusLabel}
-            </p>
-          ) : (
-            <p className="text-[11px] text-slate-400">高精度モードは現在無効です。</p>
           )}
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

@@ -1307,37 +1307,48 @@ export function TextEditor() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="flex flex-col gap-4">
-          <EditorTextareaSection
-            text={text}
-            onTextChange={handleTextChange}
-            onClear={handleClearText}
-            onUndoLastTransform={handleUndoLastTransform}
-            canUndoLastTransform={canUndoLastTransform}
-            isTransforming={isTransforming}
-            statusMessage={statusMessage}
-            statusMessageId={statusMessageId}
-            editorTitleId={editorTitleId}
-            editorDescriptionId={editorDescriptionId}
-            diffSegments={diffSegments}
-            diffTitleId={diffTitleId}
-            diffDescriptionId={diffDescriptionId}
-          />
-          <AiCheckerSection
-            text={text}
-            isCheckingAi={isCheckingAi}
-            hasCheckedOnSameDay={hasCheckedOnSameDay}
-            hasReachedDailyLimit={hasReachedDailyLimit}
-            remainingAiChecks={remainingAiChecks}
-            nextAiCheckLabel={nextAiCheckLabel}
-            aiCheckMessage={aiCheckMessage}
-            aiResult={aiResultForCurrentText}
-            onInvokeAiCheck={handleInvokeAiCheck}
-            dailyLimit={DAILY_AI_CHECK_LIMIT}
-          />
-        </div>
+    <div className="grid gap-8 lg:grid-cols-[1fr_20rem] xl:grid-cols-[1fr_24rem]">
+      <div className="space-y-8">
+        <EditorTextareaSection
+          text={text}
+          onTextChange={handleTextChange}
+          onClear={handleClearText}
+          onUndoLastTransform={handleUndoLastTransform}
+          canUndoLastTransform={canUndoLastTransform}
+          isTransforming={isTransforming}
+          statusMessage={statusMessage}
+          statusMessageId={statusMessageId}
+          editorTitleId={editorTitleId}
+          editorDescriptionId={editorDescriptionId}
+          diffSegments={diffSegments}
+          diffTitleId={diffTitleId}
+          diffDescriptionId={diffDescriptionId}
+        />
+
+        <AiCheckerSection
+          text={text}
+          isCheckingAi={isCheckingAi}
+          hasCheckedOnSameDay={hasCheckedOnSameDay}
+          hasReachedDailyLimit={hasReachedDailyLimit}
+          remainingAiChecks={remainingAiChecks}
+          nextAiCheckLabel={nextAiCheckLabel}
+          aiCheckMessage={aiCheckMessage}
+          aiResult={aiResultForCurrentText}
+          onInvokeAiCheck={handleInvokeAiCheck}
+          dailyLimit={DAILY_AI_CHECK_LIMIT}
+        />
+
+        <HistoryList
+          entries={historyEntries}
+          isLoading={!hasLoadedHistory}
+          activeEntryId={activeHistoryEntryId}
+          onRestore={handleRestoreFromHistory}
+          isRestoreDisabled={isTransforming}
+          onDeleteEntry={handleDeleteHistoryEntry}
+        />
+      </div>
+
+      <div className="space-y-6">
         <TransformationControls
           punctuationMode={punctuationMode}
           onPunctuationModeChange={handlePunctuationModeChange}
@@ -1351,14 +1362,7 @@ export function TextEditor() {
           isHighAccuracyActive={isHighAccuracyActive}
         />
       </div>
-      <HistoryList
-        entries={historyEntries}
-        isLoading={!hasLoadedHistory}
-        activeEntryId={activeHistoryEntryId}
-        onRestore={handleRestoreFromHistory}
-        isRestoreDisabled={isTransforming}
-        onDeleteEntry={handleDeleteHistoryEntry}
-      />
+
       <HighAccuracyModal
         isOpen={isHighAccuracyModalOpen}
         code={highAccuracyCode}

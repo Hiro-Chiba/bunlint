@@ -58,80 +58,91 @@ export function AiCheckerSection({
     : null;
 
   return (
-    <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <header>
-        <h2 className="text-sm font-semibold text-slate-700">AIチェッカー</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          テキストのAI生成らしさを解析し、スコアとコメントを表示します。
-        </p>
-      </header>
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-800">
+              AI Consistency Check
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              文脈、トーン、一貫性をAIが多角的に分析します。
+            </p>
+          </div>
+        </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        <span>
-          本日の残り判定回数: <span className="font-semibold text-slate-800">{remainingAiChecks}</span>
-          <span className="text-slate-400">/{dailyLimit}</span>
-        </span>
-        {nextAiCheckLabel ? (
-          <span className="whitespace-nowrap text-[11px] text-slate-500">
-            次回リセット: {nextAiCheckLabel}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className={clsx(
-            "inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-semibold transition-colors",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2",
-            isButtonDisabled
-              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-              : "border-brand-500 bg-brand-500 text-white hover:border-brand-400 hover:bg-brand-400",
-          )}
-          onClick={onInvokeAiCheck}
-          disabled={isButtonDisabled}
-        >
-          {isCheckingAi ? "判定中..." : "AIらしさを判定"}
-        </button>
-        {hasReachedDailyLimit ? (
-          <span className="text-xs text-rose-500">
-            本日の利用上限に達しました。リセット時間以降に再度お試しください。
-          </span>
-        ) : isInputEmpty ? (
-          <span className="text-xs text-slate-500">
-            判定したい文章を入力するとAIチェッカーを実行できます。
-          </span>
-        ) : (
-          <span className="text-xs text-slate-500">
-            入力中のテキストでAI生成らしさをチェックします。
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-3">
+          <div className="text-xs font-medium text-slate-500">
+            本日残り: <span className="font-bold text-slate-700">{remainingAiChecks}</span>
+            <span className="text-slate-400">/{dailyLimit}回</span>
+          </div>
+          <button
+            type="button"
+            className={clsx(
+              "inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold text-white transition-colors",
+              isButtonDisabled
+                ? "cursor-not-allowed bg-slate-300"
+                : "bg-slate-900 hover:bg-slate-800 shadow-sm",
+            )}
+            onClick={onInvokeAiCheck}
+            disabled={isButtonDisabled}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            {isCheckingAi ? "解析中..." : "解析を実行"}
+          </button>
+        </div>
       </div>
 
       {aiCheckMessage ? (
-        <p className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-xs text-brand-700" aria-live="polite">
+        <div className="mt-4 rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-600">
           {aiCheckMessage}
-        </p>
+        </div>
       ) : null}
 
       {aiResult && confidencePresentation ? (
-        <div className="space-y-3 rounded-md border border-slate-100 bg-slate-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-6 border-t border-slate-100 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium text-slate-500">AIらしさスコア</p>
-              <p
-                className={clsx(
-                  "text-3xl font-bold tracking-tight",
-                  confidencePresentation.scoreClass,
-                )}
-              >
-                {normalizedScore}
-                <span className="ml-1 text-base text-slate-400">/100</span>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                AI Score
               </p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-slate-900">
+                  {normalizedScore}
+                </span>
+                <span className="text-sm font-medium text-slate-500">/100</span>
+              </div>
             </div>
             <span
               className={clsx(
-                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                "rounded-full px-4 py-1.5 text-sm font-bold",
                 confidencePresentation.badgeClass,
               )}
             >
@@ -139,12 +150,14 @@ export function AiCheckerSection({
             </span>
           </div>
           {reasoningMessage ? (
-            <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+            <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
               {reasoningMessage}
-            </p>
+            </div>
           ) : null}
           {aiCheckedAtLabel ? (
-            <p className="text-xs text-slate-500">判定日時: {aiCheckedAtLabel}</p>
+            <p className="mt-2 text-right text-xs text-slate-400">
+              {aiCheckedAtLabel}
+            </p>
           ) : null}
         </div>
       ) : null}

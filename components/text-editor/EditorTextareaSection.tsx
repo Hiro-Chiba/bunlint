@@ -85,21 +85,25 @@ export function EditorTextareaSection({
           aria-describedby={textareaDescribedBy}
         />
       </div>
-      <dl
-        className="grid gap-3 rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600"
-        aria-label="文字数情報"
-      >
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="font-medium text-slate-600">総文字数</dt>
-          <dd className="text-lg font-semibold text-slate-800">{totalCharacters}</dd>
+      <div className="flex items-center justify-end gap-6 border-t border-slate-100 bg-slate-50 px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            TOTAL
+          </span>
+          <span className="text-sm font-bold text-slate-700">
+            {totalCharacters}
+          </span>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="font-medium text-slate-600">空白除外</dt>
-          <dd className="text-lg font-semibold text-slate-800">
+        <div className="h-3 w-px bg-slate-200"></div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            NO SPACE
+          </span>
+          <span className="text-sm font-bold text-slate-700">
             {nonWhitespaceCharacters}
-          </dd>
+          </span>
         </div>
-      </dl>
+      </div>
       {statusMessage && (
         <div
           role="status"

@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const highAccuracySecret = process.env.GEMINI_HIGH_ACCURACY_CODE;
   let useHighAccuracyModel = false;
 

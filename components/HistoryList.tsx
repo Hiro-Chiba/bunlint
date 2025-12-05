@@ -1,4 +1,5 @@
-import type React from "react";
+import { useState } from "react";
+import clsx from "clsx";
 
 import {
   writingStylePresets,
@@ -77,6 +78,8 @@ export function HistoryList({
   isRestoreDisabled = false,
   onDeleteEntry,
 }: HistoryListProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const punctuationModeLabels: Record<PunctuationMode, string> = {
     academic: "学術",
     japanese: "和文",
@@ -92,116 +95,139 @@ export function HistoryList({
     );
   }
 
-  if (entries.length === 0) {
-    return (
-      <section className="rounded-lg border border-dashed border-slate-200 bg-slate-100/60 p-4 text-sm text-slate-500">
-        <HistorySectionHeader />
-        <p className="mt-2">
-          まだ変換履歴がありません。AI で変換すると最新10件がここに表示されます。
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <HistorySectionHeader />
-      <ul className="space-y-3">
-        {entries.map((entry) => {
-          const preset = writingStylePresets[entry.writingStyle];
-          const writingStyleLabel =
-            entry.writingStyleLabel ?? preset?.label ?? entry.writingStyle;
-          const isActive = activeEntryId === entry.id;
-          const cardClassName = [
-            "rounded-md border p-3 transition-colors",
-            isActive
-              ? "border-brand-200 bg-brand-50/60"
-              : "border-slate-200 bg-white",
-          ].join(" ");
+    <section>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-slate-600"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={clsx("h-3 w-3 transition-transform", isOpen && "rotate-90")}
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+        変換履歴を表示 (自動保存)
+      </button>
 
-          return (
-            <li key={entry.id} className={cardClassName}>
-              <div className="flex items-start justify-between gap-2 text-xs text-slate-500">
-                <span className="leading-relaxed">
-                  {new Date(entry.createdAt).toLocaleString("ja-JP")}
-                </span>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <span>
-                    {writingStyleLabel} /{" "}
-                    {punctuationModeLabels[entry.punctuationMode]}
-                  </span>
-                  {onDeleteEntry && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteEntry(entry.id)}
-                      aria-label="この履歴を削除"
-                      className="rounded-md border border-transparent p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:ring-offset-1"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      <span className="sr-only">この履歴を削除</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="mt-3 grid gap-3 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-600">変換後</p>
-                  <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-slate-100 bg-slate-50 p-2 text-slate-600">
-                    {entry.outputText || entry.inputText}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-600">変換前</p>
-                  <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-slate-100 bg-white p-2 text-slate-500">
-                    {entry.inputText}
-                  </p>
-                </div>
-              </div>
-              {typeof entry.aiScore === "number" && (
-                <div className="mt-3 space-y-1 rounded-md border border-emerald-100 bg-emerald-50/70 p-3 text-[11px] leading-relaxed text-emerald-900">
-                  <p className="text-xs font-semibold">AIチェッカー</p>
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-lg font-bold text-emerald-700">
-                      {Math.round(entry.aiScore)}%
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-emerald-800">
-                    チェック日時:{" "}
-                    {new Date(
-                      entry.aiCheckedAt ?? entry.createdAt,
-                    ).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
-                  </p>
-                  {entry.aiReasoning && (
-                    <p className="whitespace-pre-wrap text-[11px] text-emerald-800">
-                      {entry.aiReasoning}
-                    </p>
-                  )}
-                </div>
-              )}
-              {onRestore && (
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => onRestore(entry.id, "output")}
-                    disabled={isRestoreDisabled}
-                    className="rounded-md border border-brand-200 bg-brand-100 px-3 py-1 font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    変換結果を復元
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onRestore(entry.id, "input")}
-                    disabled={isRestoreDisabled}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    変換前に戻す
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {isOpen && (
+        <div className="mt-4 space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <HistorySectionHeader />
+          {entries.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              まだ変換履歴がありません。AI で変換すると最新10件がここに表示されます。
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {entries.map((entry) => {
+                const preset = writingStylePresets[entry.writingStyle];
+                const writingStyleLabel =
+                  entry.writingStyleLabel ??
+                  preset?.label ??
+                  entry.writingStyle;
+                const isActive = activeEntryId === entry.id;
+                const cardClassName = [
+                  "rounded-md border p-3 transition-colors",
+                  isActive
+                    ? "border-brand-200 bg-brand-50/60"
+                    : "border-slate-200 bg-white",
+                ].join(" ");
+
+                return (
+                  <li key={entry.id} className={cardClassName}>
+                    <div className="flex items-start justify-between gap-2 text-xs text-slate-500">
+                      <span className="leading-relaxed">
+                        {new Date(entry.createdAt).toLocaleString("ja-JP")}
+                      </span>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <span>
+                          {writingStyleLabel} /{" "}
+                          {punctuationModeLabels[entry.punctuationMode]}
+                        </span>
+                        {onDeleteEntry && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteEntry(entry.id)}
+                            aria-label="この履歴を削除"
+                            className="rounded-md border border-transparent p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:ring-offset-1"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            <span className="sr-only">この履歴を削除</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-3 text-xs">
+                      <div>
+                        <p className="font-semibold text-slate-600">変換後</p>
+                        <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-slate-100 bg-slate-50 p-2 text-slate-600">
+                          {entry.outputText || entry.inputText}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-600">変換前</p>
+                        <p className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-slate-100 bg-white p-2 text-slate-500">
+                          {entry.inputText}
+                        </p>
+                      </div>
+                    </div>
+                    {typeof entry.aiScore === "number" && (
+                      <div className="mt-3 space-y-1 rounded-md border border-emerald-100 bg-emerald-50/70 p-3 text-[11px] leading-relaxed text-emerald-900">
+                        <p className="text-xs font-semibold">AIチェッカー</p>
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="text-lg font-bold text-emerald-700">
+                            {Math.round(entry.aiScore)}%
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-800">
+                          チェック日時:{" "}
+                          {new Date(
+                            entry.aiCheckedAt ?? entry.createdAt,
+                          ).toLocaleString("ja-JP", {
+                            timeZone: "Asia/Tokyo",
+                          })}
+                        </p>
+                        {entry.aiReasoning && (
+                          <p className="whitespace-pre-wrap text-[11px] text-emerald-800">
+                            {entry.aiReasoning}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {onRestore && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => onRestore(entry.id, "output")}
+                          disabled={isRestoreDisabled}
+                          className="rounded-md border border-brand-200 bg-brand-100 px-3 py-1 font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-200 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          変換結果を復元
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRestore(entry.id, "input")}
+                          disabled={isRestoreDisabled}
+                          className="rounded-md border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          変換前に戻す
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }

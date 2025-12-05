@@ -7,7 +7,7 @@ import {
   DatabaseQueryError,
   HISTORY_RETENTION_MINUTES,
 } from "@/lib/history";
-import { isWritingStyle } from "@/lib/gemini/index";
+import { isWritingStyle, normalizeWritingStyle } from "@/lib/gemini/index";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 const MAX_HISTORY_LIMIT = 50;

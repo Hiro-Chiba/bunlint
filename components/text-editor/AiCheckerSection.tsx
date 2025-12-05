@@ -78,7 +78,7 @@ export function AiCheckerSection({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-800">
-              AI Consistency Check
+              AI一貫性チェック
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               文脈、トーン、一貫性をAIが多角的に分析します。
@@ -131,7 +131,7 @@ export function AiCheckerSection({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                AI Score
+                AIスコア
               </p>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="text-4xl font-bold text-slate-900">

@@ -45,6 +45,11 @@ export function EditorTextareaSection({
     excludeWhitespace: true,
   });
 
+  const counters = [
+    { label: "総文字数", value: totalCharacters },
+    { label: "空白除く", value: nonWhitespaceCharacters },
+  ];
+
   return (
     <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <header className="space-y-2">
@@ -86,23 +91,17 @@ export function EditorTextareaSection({
         />
       </div>
       <div className="flex items-center justify-end gap-6 border-t border-slate-100 bg-slate-50 px-4 py-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            TOTAL
-          </span>
-          <span className="text-sm font-bold text-slate-700">
-            {totalCharacters}
-          </span>
-        </div>
-        <div className="h-3 w-px bg-slate-200"></div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            NO SPACE
-          </span>
-          <span className="text-sm font-bold text-slate-700">
-            {nonWhitespaceCharacters}
-          </span>
-        </div>
+        {counters.map((counter, index) => (
+          <div key={counter.label} className="flex items-center gap-3">
+            {index > 0 && <div className="h-3 w-px bg-slate-200"></div>}
+            <div className="flex items-baseline gap-2">
+              <span className="text-[10px] font-bold tracking-wider text-slate-400">
+                {counter.label}
+              </span>
+              <span className="text-sm font-bold text-slate-700">{counter.value}</span>
+            </div>
+          </div>
+        ))}
       </div>
       {statusMessage && (
         <div

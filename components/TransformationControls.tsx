@@ -7,7 +7,7 @@ import {
   writingStylePresets,
   writingStyleSelectGroups,
   type WritingStyle,
-} from "@/lib/gemini";
+} from "@/lib/gemini/index";
 import type { PunctuationCharacter, PunctuationMode } from "@/lib/punctuation";
 
 type TransformationControlsProps = {

@@ -5,7 +5,7 @@ import {
   normalizeGeminiOutput,
   normalizeWritingStyle,
   validateWritingStyleCompliance,
-} from "../lib/gemini";
+} from "../lib/gemini/index";
 
 describe("validateWritingStyleCompliance", () => {
   test("だ・である調の文末が常体で統一されていれば成功する", () => {

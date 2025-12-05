@@ -7,7 +7,7 @@ import {
   transformTextWithGemini,
   normalizeWritingStyle,
   writingStylePresets,
-} from "@/lib/gemini";
+} from "@/lib/gemini/index";
 import type { PunctuationMode } from "@/lib/punctuation";
 import { HIGH_ACCURACY_COOKIE_NAME } from "@/lib/high-accuracy";
 import { verifyHighAccuracyToken } from "@/lib/high-accuracy.server";

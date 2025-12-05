@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalizeWritingStyle, type WritingStyle } from "@/lib/gemini";
+import { normalizeWritingStyle, type WritingStyle } from "@/lib/gemini/index";
 import type { PunctuationMode } from "@/lib/punctuation";
 
 import {

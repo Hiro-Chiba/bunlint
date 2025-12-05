@@ -1,4 +1,4 @@
-# bunlint
+# Bun Checker
 
 Next.js 16 と Tailwind CSS で構築された、日本語テキストの整形・推敲支援ツールです。
 

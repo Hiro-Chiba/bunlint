@@ -78,10 +78,10 @@ export function AiCheckerSection({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-800">
-              AI Consistency Check
+              AIチェッカー
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              文脈、トーン、一貫性をAIが多角的に分析します。
+              AIの使用率を推定します。
             </p>
           </div>
         </div>

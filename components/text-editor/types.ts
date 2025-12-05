@@ -1,4 +1,4 @@
-import type { AiConfidenceLevel } from "@/lib/gemini";
+import type { AiConfidenceLevel } from "@/lib/gemini/index";
 
 export type AiCheckResultState = {
   score: number;

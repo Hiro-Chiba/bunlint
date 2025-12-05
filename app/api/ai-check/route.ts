@@ -5,7 +5,7 @@ import {
   analyzeAiLikelihoodWithGemini,
   toUserFacingGeminiErrorMessage,
   type AiCheckerResult,
-} from "@/lib/gemini";
+} from "@/lib/gemini/index";
 import { getNextJstMidnight, toJstDateString } from "@/lib/jst";
 
 const MAX_INPUT_LENGTH = 4000;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import * as GeminiModule from "../lib/gemini";
+import * as GeminiModule from "../lib/gemini/index";
 import { POST as aiCheckRoute } from "../app/api/ai-check/route";
 
 const { GeminiError, parseAiCheckerResponse } = GeminiModule;

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { analyzeAiLikelihoodWithGemini } from "../lib/gemini";
+import { analyzeAiLikelihoodWithGemini } from "../lib/gemini/index";
 
 describe("AI Checker Reproduction", () => {
   it("should not flag formal human-written text as AI", async () => {

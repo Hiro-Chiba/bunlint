@@ -15,7 +15,7 @@ import {
   resolveWritingStyleFromLabel,
   type AiConfidenceLevel,
   type WritingStyle,
-} from "@/lib/gemini";
+} from "@/lib/gemini/index";
 import { HISTORY_RETENTION_MS } from "@/lib/history/constants";
 import { diffWords, type DiffSegment } from "@/lib/diff";
 import { getNextJstMidnight, isSameJstDate } from "@/lib/jst";

@@ -1,4 +1,4 @@
-import type { AiConfidenceLevel } from "@/lib/gemini";
+import { type AiConfidenceLevel } from "@/lib/gemini/index";
 
 export const DEFAULT_AI_REASONING: Record<AiConfidenceLevel, string> = {
   low: "AI生成らしさは低いと判断されました。",

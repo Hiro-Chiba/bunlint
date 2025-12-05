@@ -5,7 +5,7 @@ import {
   writingStylePresets,
   type AiConfidenceLevel,
   type WritingStyle,
-} from "@/lib/gemini";
+} from "@/lib/gemini/index";
 import { HISTORY_RETENTION_MINUTES } from "@/lib/history/constants";
 import type { PunctuationMode } from "@/lib/punctuation";
 

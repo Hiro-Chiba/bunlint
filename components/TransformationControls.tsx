@@ -95,7 +95,7 @@ export function TransformationControls({
             )}
           >
             <div className="flex w-full items-center justify-between">
-              <span className="font-bold text-sm">標準 (Standard)</span>
+              <span className="font-bold text-sm">標準</span>
               <span className="font-mono text-xs opacity-70">、。</span>
             </div>
             <span className="mt-1 text-xs opacity-80">一般的な日本語文章</span>

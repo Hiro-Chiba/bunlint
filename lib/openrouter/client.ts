@@ -11,6 +11,43 @@ export type OpenRouterChatParams = {
   temperature?: number;
 };
 
+function extractOpenRouterErrorMessage(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw);
+    const messageCandidate =
+      parsed?.error?.message ?? parsed?.error ?? parsed?.message;
+
+    if (typeof messageCandidate === "string" && messageCandidate.trim()) {
+      return messageCandidate.trim();
+    }
+  } catch {
+    // JSONでない場合はそのまま扱う
+  }
+
+  const plain = raw.trim();
+  return plain.length > 0 ? plain : null;
+}
+
+function buildOpenRouterErrorHint(status: number, rawBody: string): string | null {
+  const detail = extractOpenRouterErrorMessage(rawBody);
+  const base = detail
+    ? `OpenRouter API の呼び出しに失敗しました: ${detail}`
+    : null;
+
+  if (status === 401) {
+    return `${base ?? "OpenRouter API の呼び出しに失敗しました。"} APIキーが無効か、ヘッダーに設定されていない可能性があります。`;
+  }
+
+  if (status === 402 || status === 403) {
+    return (
+      `${base ?? "OpenRouter API の呼び出しに失敗しました。"} ` +
+      "無料枠の上限・課金設定、またはモデルの利用許可(Allowlist)を確認してください。"
+    );
+  }
+
+  return base;
+}
+
 export async function callOpenRouterChat({
   model,
   messages,
@@ -40,10 +77,14 @@ export async function callOpenRouterChat({
   const body = await response.text();
 
   if (!response.ok) {
-    throw new GeminiError("OpenRouter API の呼び出しに失敗しました。", {
-      status: response.status,
-      cause: body,
-    });
+    const hint = buildOpenRouterErrorHint(response.status, body);
+    throw new GeminiError(
+      hint ?? "OpenRouter API の呼び出しに失敗しました。",
+      {
+        status: response.status,
+        cause: body,
+      },
+    );
   }
 
   try {

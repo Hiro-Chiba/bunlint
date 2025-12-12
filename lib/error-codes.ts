@@ -11,10 +11,16 @@ const userFacingErrorMessages: Record<ErrorCode, string> = {
   TRANSFORM_UNEXPECTED_ERROR: "語尾変換の処理中にエラーが発生しました。",
 };
 
-export function createUserFacingErrorPayload(code: ErrorCode) {
+export function createUserFacingErrorPayload(code: ErrorCode, detail?: string) {
   const base = userFacingErrorMessages[code] ?? "システムでエラーが発生しました。";
+  const detailText = detail?.trim();
+
+  const helpMessage = detailText
+    ? `${base}${base.endsWith("。") ? "" : "。"}詳細: ${detailText} `
+    : `${base}${base.endsWith("。") ? "" : "。"}`;
+
   return {
-    error: `${base}エラーコード: ${code}。解決しない場合は管理者へお知らせください。`,
+    error: `${helpMessage}エラーコード: ${code}。解決しない場合は管理者へお知らせください。`,
     errorCode: code,
   };
 }

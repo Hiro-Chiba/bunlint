@@ -123,11 +123,16 @@ function clampToUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function parseJsonResponse<T>(raw: string, label: string): T {
+function parseJsonResponse<T>(
+  raw: string,
+  label: string,
+  developerCode?: GeminiError["developerCode"],
+): T {
   const snippet = extractJsonSnippet(raw);
   if (!snippet) {
     throw new GeminiError(`${label} の解析結果を読み取れませんでした。`, {
       status: 502,
+      developerCode,
     });
   }
 
@@ -137,6 +142,7 @@ function parseJsonResponse<T>(raw: string, label: string): T {
     throw new GeminiError(`${label} の解析結果がJSON形式ではありません。`, {
       status: 502,
       cause: error,
+      developerCode,
     });
   }
 }
@@ -153,7 +159,11 @@ async function requestGeminiFullCheck({
     temperature,
   });
 
-  const parsed = parseJsonResponse<GeminiMainCheck>(raw, "Geminiメイン判定");
+  const parsed = parseJsonResponse<GeminiMainCheck>(
+    raw,
+    "Geminiメイン判定",
+    "OPENROUTER",
+  );
 
   const normalizedSegments = Array.isArray(parsed.suspicious_segments)
     ? parsed.suspicious_segments
@@ -190,7 +200,11 @@ async function requestNovaSecondaryChecks(
       messages: [{ role: "user", content: prompt }],
     });
 
-    const parsed = parseJsonResponse<NovaSecondaryReview>(raw, "Nova再検証");
+    const parsed = parseJsonResponse<NovaSecondaryReview>(
+      raw,
+      "Nova再検証",
+      "OPENROUTER",
+    );
 
     reviews.push({
       segment_id: Number(parsed.segment_id ?? segment.segment_id),
@@ -319,6 +333,7 @@ async function analyzeWithGeminiApi({
   if (!apiKey) {
     throw new GeminiError("GEMINI_API_KEY が設定されていません。", {
       status: 500,
+      developerCode: "GEMINI_API",
     });
   }
 
@@ -334,7 +349,7 @@ async function analyzeWithGeminiApi({
     convertOutputMode: null,
   });
 
-  return parseAiCheckerResponse(result.outputText);
+  return parseAiCheckerResponse(result.outputText, "GEMINI_API");
 }
 
 export async function analyzeAiLikelihoodWithGemini({
@@ -359,6 +374,7 @@ export async function analyzeAiLikelihoodWithGemini({
       "AIチェッカーに必要な API キーが設定されていません (OPENROUTER_API_KEY または GEMINI_API_KEY)。",
       {
         status: 500,
+        developerCode: "GEMINI_API",
       },
     );
   }
@@ -377,6 +393,7 @@ export async function transformTextWithGemini({
   if (!apiKey) {
     throw new GeminiError("GEMINI_API_KEY が設定されていません。", {
       status: 500,
+      developerCode: "GEMINI_API",
     });
   }
 
@@ -482,9 +499,11 @@ export async function transformTextWithGemini({
   if (validationReason) {
     const errorOptions: {
       status: number;
+      developerCode: GeminiError["developerCode"];
       cause?: { offendingSentences: string[] };
     } = {
       status: 502,
+      developerCode: "GEMINI_API",
     };
 
     if (lastOffendingSentences.length > 0) {
@@ -496,5 +515,6 @@ export async function transformTextWithGemini({
 
   throw new GeminiError("Gemini API の出力が文体の条件を満たしませんでした。", {
     status: 502,
+    developerCode: "GEMINI_API",
   });
 }

@@ -77,6 +77,7 @@ export async function requestGeminiApi({
       {
         status: response.status,
         cause: parsedBody,
+        developerCode: "GEMINI_API",
       },
     );
   }
@@ -89,6 +90,7 @@ export async function requestGeminiApi({
       throw new GeminiError("Gemini API のレスポンス解析に失敗しました。", {
         status: 502,
         cause: error,
+        developerCode: "GEMINI_API",
       });
     }
   }
@@ -98,6 +100,7 @@ export async function requestGeminiApi({
   if (!outputText) {
     throw new GeminiError("Gemini API から有効な文章を取得できませんでした。", {
       status: 502,
+      developerCode: "GEMINI_API",
     });
   }
 
@@ -159,5 +162,6 @@ export async function executeGeminiRequest({
 
   throw new GeminiError("Gemini API の呼び出しに失敗しました。", {
     status: 500,
+    developerCode: "GEMINI_API",
   });
 }

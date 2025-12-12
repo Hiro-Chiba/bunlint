@@ -57,6 +57,7 @@ export async function callOpenRouterChat({
   if (!apiKey) {
     throw new GeminiError("OPENROUTER_API_KEY が設定されていません。", {
       status: 500,
+      developerCode: "OPENROUTER",
     });
   }
 
@@ -83,6 +84,7 @@ export async function callOpenRouterChat({
       {
         status: response.status,
         cause: body,
+        developerCode: "OPENROUTER",
       },
     );
   }
@@ -97,10 +99,12 @@ export async function callOpenRouterChat({
     throw new GeminiError("OpenRouter API のレスポンス解析に失敗しました。", {
       status: 502,
       cause: error,
+      developerCode: "OPENROUTER",
     });
   }
 
   throw new GeminiError("OpenRouter API から有効な応答を取得できませんでした。", {
     status: 502,
+    developerCode: "OPENROUTER",
   });
 }

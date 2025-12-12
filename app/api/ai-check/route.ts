@@ -3,9 +3,12 @@ import { NextResponse } from "next/server";
 import {
   GeminiError,
   analyzeAiLikelihoodWithGemini,
-  toUserFacingGeminiErrorMessage,
   type AiCheckerResult,
 } from "@/lib/gemini/index";
+import {
+  createUserFacingErrorPayload,
+  type ErrorCode,
+} from "@/lib/error-codes";
 import { getNextJstMidnight, toJstDateString } from "@/lib/jst";
 
 const MAX_INPUT_LENGTH = 4000;
@@ -33,6 +36,7 @@ type AiCheckErrorPayload = {
   error: string;
   lastCheckedAt?: string;
   dailyCheckCount?: number;
+  errorCode?: ErrorCode;
 };
 
 function parseRequestBody(raw: Request): Promise<AiCheckRequestBody | null> {
@@ -204,14 +208,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof GeminiError) {
       return NextResponse.json<AiCheckErrorPayload>(
-        { error: toUserFacingGeminiErrorMessage(error) },
+        createUserFacingErrorPayload("AI_CHECK_PROVIDER_ERROR"),
         { status: error.status },
       );
     }
 
     console.error("AI checker failed", error);
     return NextResponse.json<AiCheckErrorPayload>(
-      { error: "AIチェッカーの実行中に予期せぬエラーが発生しました。" },
+      createUserFacingErrorPayload("AI_CHECK_UNEXPECTED_ERROR"),
       { status: 500 },
     );
   }

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 
 import {
   GeminiError,
-  toUserFacingGeminiErrorMessage,
   transformTextWithGemini,
   normalizeWritingStyle,
   writingStylePresets,
@@ -11,6 +10,7 @@ import {
 import type { PunctuationMode } from "@/lib/punctuation";
 import { HIGH_ACCURACY_COOKIE_NAME } from "@/lib/high-accuracy";
 import { verifyHighAccuracyToken } from "@/lib/high-accuracy.server";
+import { createUserFacingErrorPayload, type ErrorCode } from "@/lib/error-codes";
 
 const MAX_INPUT_LENGTH = 4000;
 
@@ -18,6 +18,11 @@ type TransformRequestBody = {
   inputText?: unknown;
   writingStyle?: unknown;
   punctuationMode?: unknown;
+};
+
+type TransformErrorPayload = {
+  error: string;
+  errorCode?: ErrorCode;
 };
 
 function isPunctuationMode(value: unknown): value is PunctuationMode {
@@ -29,7 +34,7 @@ export async function POST(request: Request) {
   const contentType = request.headers.get("content-type");
 
   if (!contentType || !/application\/json/i.test(contentType)) {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       {
         error: "JSON 形式のリクエストのみ受け付けています。",
       },
@@ -40,7 +45,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as TransformRequestBody;
   } catch {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       {
         error:
           "リクエストボディの解析に失敗しました。JSON 形式で送信してください。",
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   if (!body || typeof body.inputText !== "string") {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       { error: "入力テキストが正しく送信されていません。" },
       { status: 400 },
     );
@@ -58,14 +63,14 @@ export async function POST(request: Request) {
 
   const trimmedText = body.inputText.trim();
   if (!trimmedText) {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       { error: "語尾変換を行うテキストを入力してください。" },
       { status: 400 },
     );
   }
 
   if (trimmedText.length > MAX_INPUT_LENGTH) {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       {
         error: `テキストが長すぎます。${MAX_INPUT_LENGTH}文字以内に収めてください。`,
       },
@@ -76,14 +81,14 @@ export async function POST(request: Request) {
   const normalizedWritingStyle = normalizeWritingStyle(body.writingStyle);
 
   if (!normalizedWritingStyle) {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       { error: "指定された語尾スタイルが無効です。" },
       { status: 400 },
     );
   }
 
   if (!isPunctuationMode(body.punctuationMode)) {
-    return NextResponse.json(
+    return NextResponse.json<TransformErrorPayload>(
       { error: "指定された句読点スタイルが無効です。" },
       { status: 400 },
     );
@@ -125,15 +130,15 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof GeminiError) {
-      return NextResponse.json(
-        { error: toUserFacingGeminiErrorMessage(error) },
+      return NextResponse.json<TransformErrorPayload>(
+        createUserFacingErrorPayload("TRANSFORM_PROVIDER_ERROR"),
         { status: error.status },
       );
     }
 
     console.error("AI transform failed", error);
-    return NextResponse.json(
-      { error: "AI変換で予期せぬエラーが発生しました。" },
+    return NextResponse.json<TransformErrorPayload>(
+      createUserFacingErrorPayload("TRANSFORM_UNEXPECTED_ERROR"),
       { status: 500 },
     );
   }

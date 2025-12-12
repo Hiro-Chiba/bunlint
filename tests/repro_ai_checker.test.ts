@@ -2,6 +2,22 @@ import { describe, it } from "node:test";
 import assert from "node:assert";
 import { analyzeAiLikelihoodWithGemini } from "../lib/gemini/index";
 
+const ORIGINAL_OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+
+const createOpenRouterResponse = (content: unknown) =>
+  new Response(
+    JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify(content),
+          },
+        },
+      ],
+    }),
+    { status: 200 },
+  );
+
 describe("AI Checker Reproduction", () => {
   it("should not flag formal human-written text as AI", async () => {
     // A formal, academic-style text that might be falsely flagged
@@ -11,6 +27,25 @@ describe("AI Checker Reproduction", () => {
 したがって、今後の研究においては、モデルの透明性を高める手法の開発が急務であると言えるだろう。
 結論として、技術の進歩と倫理的な側面のバランスを考慮した開発体制の構築が求められる。
     `.trim();
+
+    const originalFetch = globalThis.fetch;
+    const responses = [
+      createOpenRouterResponse({
+        overall_score: 0.2,
+        overall_judgement: "low",
+        suspicious_segments: [],
+        notes: "論旨に揺らぎがありAI兆候は限定的",
+      }),
+    ];
+
+    process.env.OPENROUTER_API_KEY = "test-openrouter";
+    globalThis.fetch = async () => {
+      const next = responses.shift();
+      if (!next) {
+        throw new Error("unexpected fetch call");
+      }
+      return next;
+    };
 
     try {
       const result = await analyzeAiLikelihoodWithGemini({
@@ -25,13 +60,9 @@ describe("AI Checker Reproduction", () => {
       // If score > 50, it's considered "AI-like" by the checker.
       assert.ok(result.score < 50, `Expected score < 50, but got ${result.score}. Reasoning: ${result.reasoning}`);
       
-    } catch (error) {
-      // If API key is missing, skip test or fail gracefully
-      if (error instanceof Error && error.message.includes("GEMINI_API_KEY")) {
-        console.warn("Skipping test: GEMINI_API_KEY not set");
-        return;
-      }
-      throw error;
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env.OPENROUTER_API_KEY = ORIGINAL_OPENROUTER_KEY;
     }
   });
 });

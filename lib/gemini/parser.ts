@@ -113,33 +113,49 @@ export function parseAiCheckerResponse(raw: string): AiCheckerResult {
     );
   }
 
-  const scoreCandidate =
-    parsed?.score ??
-    parsed?.aiScore ??
-    parsed?.likelihood ??
-    parsed?.probability;
-  const sanitizedScore = sanitizeScore(scoreCandidate);
-  const clampedScore = Math.round(Math.max(0, Math.min(100, sanitizedScore)));
+  const normalizedScore =
+    typeof parsed?.overall_score === "number"
+      ? Math.round(Math.max(0, Math.min(1, parsed.overall_score)) * 100)
+      : Math.round(
+          Math.max(
+            0,
+            Math.min(
+              100,
+              sanitizeScore(
+                parsed?.score ??
+                  parsed?.aiScore ??
+                  parsed?.likelihood ??
+                  parsed?.probability,
+              ),
+            ),
+          ),
+        );
 
   const confidence = normalizeConfidenceLevel(
-    parsed?.confidence ?? parsed?.level ?? parsed?.rating ?? parsed?.verdict,
-    clampedScore,
+    parsed?.overall_judgement ??
+      parsed?.confidence ??
+      parsed?.level ??
+      parsed?.rating ??
+      parsed?.verdict,
+    normalizedScore,
   );
 
   const rawReasoning =
-    typeof parsed?.reasoning === "string"
-      ? parsed.reasoning
-      : typeof parsed?.analysis === "string"
-        ? parsed.analysis
-        : typeof parsed?.summary === "string"
-          ? parsed.summary
-          : "";
+    typeof parsed?.notes === "string"
+      ? parsed.notes
+      : typeof parsed?.reasoning === "string"
+        ? parsed.reasoning
+        : typeof parsed?.analysis === "string"
+          ? parsed.analysis
+          : typeof parsed?.summary === "string"
+            ? parsed.summary
+            : "";
 
   const reasoning =
     rawReasoning.trim() || DEFAULT_REASONING_BY_CONFIDENCE[confidence];
 
   return {
-    score: clampedScore,
+    score: normalizedScore,
     confidence,
     reasoning,
   };

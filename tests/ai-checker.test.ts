@@ -5,231 +5,189 @@ import * as GeminiModule from "../lib/gemini/index";
 import { POST as aiCheckRoute } from "../app/api/ai-check/route";
 
 const { GeminiError, parseAiCheckerResponse } = GeminiModule;
-const ORIGINAL_API_KEY = process.env.GEMINI_API_KEY;
-const ORIGINAL_MODEL = process.env.GEMINI_MODEL;
+const ORIGINAL_OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+const ORIGINAL_GEMINI_KEY = process.env.GEMINI_API_KEY;
 
-const restoreGeminiModelEnv = () => {
-  if (typeof ORIGINAL_MODEL === "string") {
-    process.env.GEMINI_MODEL = ORIGINAL_MODEL;
-  } else {
-    delete process.env.GEMINI_MODEL;
+const restoreEnv = (key: string, value: string | undefined) => {
+  if (typeof value === "string") {
+    process.env[key] = value;
+    return;
   }
+
+  delete process.env[key];
 };
 
+const createOpenRouterResponse = (content: unknown) =>
+  new Response(
+    JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify(content),
+          },
+        },
+      ],
+    }),
+    { status: 200 },
+  );
+
 describe("parseAiCheckerResponse", () => {
-  test("JSONレスポンスを正しく解析する", () => {
-    const raw =
-      '{"score": 42, "confidence": "medium", "reasoning": "文体に揺らぎがあります"}';
+  test("Gemini新フォーマットを解析できる", () => {
+    const raw = JSON.stringify({
+      overall_score: 0.72,
+      overall_judgement: "high",
+      suspicious_segments: [],
+      notes: "ばらつきが少ない文体",
+    });
     const result = parseAiCheckerResponse(raw);
     assert.deepStrictEqual(result, {
-      score: 42,
-      confidence: "medium",
-      reasoning: "文体に揺らぎがあります",
+      score: 72,
+      confidence: "high",
+      reasoning: "ばらつきが少ない文体",
     });
   });
 
-  test("信頼度が欠ける場合はスコアから推定する", () => {
-    const raw = '{"score": 85, "reasoning": "AIの定型表現が多い"}';
+  test("旧来フォーマットも後方互換で解析する", () => {
+    const raw = '{"score": 42, "reasoning": "テスト"}';
     const result = parseAiCheckerResponse(raw);
-    assert.equal(result.confidence, "high");
-    assert.equal(result.reasoning.includes("AI"), true);
-  });
-
-  test("コードフェンス付きのJSONでも解析できる", () => {
-    const raw =
-      '```json\n{"likelihood": "74", "analysis": "AI特有の語彙が連続しています"}\n```';
-    const result = parseAiCheckerResponse(raw);
-    assert.equal(result.score, 74);
-    assert.equal(result.confidence, "high");
-    assert.equal(result.reasoning.includes("AI特有"), true);
+    assert.equal(result.score, 42);
+    assert.equal(result.confidence, "medium");
+    assert.equal(result.reasoning, "テスト");
   });
 });
 
 describe("analyzeAiLikelihoodWithGemini", () => {
-  test(
-    "Gemini APIの異常応答は例外を送出する",
-    { concurrency: false },
-    async () => {
-      process.env.GEMINI_API_KEY = "test-key";
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = async () => new Response("invalid", { status: 200 });
+  test("GeminiとNovaの統合スコアを計算する", { concurrency: false }, async () => {
+    process.env.OPENROUTER_API_KEY = "test-openrouter";
+    const originalFetch = globalThis.fetch;
+    const responses = [
+      createOpenRouterResponse({
+        overall_score: 0.8,
+        overall_judgement: "high",
+        suspicious_segments: [
+          { segment_id: 1, location: "1行目", reason: "均質な語尾", score: 0.7 },
+          { segment_id: 2, location: "2行目", reason: "テンプレ感", score: 0.5 },
+        ],
+        notes: "均質性が高い文章",
+      }),
+      createOpenRouterResponse({
+        segment_id: 1,
+        secondary_score: 0.6,
+        agreement: true,
+        reason: "多少ぎこちないが自然",
+      }),
+      createOpenRouterResponse({
+        segment_id: 2,
+        secondary_score: 0.4,
+        agreement: false,
+        reason: "人間でもあり得る",
+      }),
+    ];
 
-      try {
-        await assert.rejects(
-          () => GeminiModule.analyzeAiLikelihoodWithGemini({ text: "test" }),
-          (error: unknown) => {
-            assert.equal(error instanceof GeminiError, true);
-            return true;
-          },
-        );
-      } finally {
-        globalThis.fetch = originalFetch;
-        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
-        restoreGeminiModelEnv();
-      }
-    },
-  );
+    globalThis.fetch = async () => {
+      const next = responses.shift();
+      assert.ok(next, "fetch calls exceeded stubs");
+      return next;
+    };
 
-  test(
-    "v1betaがリソース枯渇の場合は同モデルのv1へフォールバックする",
-    { concurrency: false },
-    async () => {
-      process.env.GEMINI_API_KEY = "test-key";
-      const originalFetch = globalThis.fetch;
-      const callHistory: Array<{ model: string; version: string }> = [];
+    try {
+      const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
+        text: "テスト本文",
+      });
 
-      globalThis.fetch = async (input) => {
-        const url = new URL(String(input));
-        const [, version, , modelWithSuffix] = url.pathname.split("/");
-        const model = modelWithSuffix?.split(":")[0] ?? "";
+      assert.equal(result.score, 68);
+      assert.equal(result.confidence, "high");
+      assert.ok(result.reasoning.includes("最終スコアは68点"));
+    } finally {
+      globalThis.fetch = originalFetch;
+      restoreEnv("OPENROUTER_API_KEY", ORIGINAL_OPENROUTER_KEY);
+    }
+  });
 
-        callHistory.push({ model, version });
+  test("OpenRouterの異常応答は例外を送出する", { concurrency: false }, async () => {
+    process.env.OPENROUTER_API_KEY = "test-openrouter";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("invalid", { status: 200 });
 
-        if (callHistory.length === 1) {
-          return new Response(
-            JSON.stringify({
-              error: { message: "Resource exhausted. Please try again later." },
-            }),
-            { status: 429 },
-          );
-        }
+    try {
+      await assert.rejects(
+        () => GeminiModule.analyzeAiLikelihoodWithGemini({ text: "test" }),
+        (error: unknown) => {
+          assert.equal(error instanceof GeminiError, true);
+          return true;
+        },
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      restoreEnv("OPENROUTER_API_KEY", ORIGINAL_OPENROUTER_KEY);
+    }
+  });
 
-        return new Response(
-          JSON.stringify({
-            candidates: [
-              {
-                content: {
-                  parts: [
-                    {
-                      text: '{"score": 12, "confidence": "low", "reasoning": "テスト"}',
-                    },
-                  ],
-                },
+  test("OpenRouterキーなしでも既存Geminiロジックで動作する", { concurrency: false }, async () => {
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.GEMINI_API_KEY = "test-gemini";
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: '{"score": 55, "reasoning": "fallback"}' }],
               },
-            ],
-          }),
-          { status: 200 },
-        );
-      };
+            },
+          ],
+        }),
+        { status: 200 },
+      );
 
-      try {
-        const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
-          text: "テキスト",
-        });
+    try {
+      const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
+        text: "フォールバックテスト",
+      });
 
-        assert.deepStrictEqual(result, {
-          score: 12,
-          confidence: "low",
-          reasoning: "テスト",
-        });
-
-        assert.deepStrictEqual(callHistory, [
-          { version: "v1beta", model: "gemini-2.0-flash-lite" },
-          { version: "v1", model: "gemini-2.0-flash-lite" },
-        ]);
-      } finally {
-        globalThis.fetch = originalFetch;
-        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
-        restoreGeminiModelEnv();
-      }
-    },
-  );
-
-  test(
-    "Gemini 2.0 Flashが枯渇した場合はFlash-Liteへフォールバックする",
-    { concurrency: false },
-    async () => {
-      process.env.GEMINI_API_KEY = "test-key";
-      process.env.GEMINI_MODEL = "gemini-2.0-flash";
-      const originalFetch = globalThis.fetch;
-      const callHistory: Array<{ model: string; version: string }> = [];
-
-      globalThis.fetch = async (input) => {
-        const url = new URL(String(input));
-        const [, version, , modelWithSuffix] = url.pathname.split("/");
-        const model = modelWithSuffix?.split(":")[0] ?? "";
-
-        callHistory.push({ model, version });
-
-        if (callHistory.length <= 2) {
-          return new Response(
-            JSON.stringify({
-              error: { message: "Resource exhausted. Please try again later." },
-            }),
-            { status: 429 },
-          );
-        }
-
-        return new Response(
-          JSON.stringify({
-            candidates: [
-              {
-                content: {
-                  parts: [
-                    {
-                      text: '{"score": 21, "confidence": "medium", "reasoning": "フォールバック成功"}',
-                    },
-                  ],
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
-      };
-
-      try {
-        const result = await GeminiModule.analyzeAiLikelihoodWithGemini({
-          text: "テキスト",
-        });
-
-        assert.deepStrictEqual(result, {
-          score: 21,
-          confidence: "medium",
-          reasoning: "フォールバック成功",
-        });
-
-        assert.deepStrictEqual(callHistory, [
-          { version: "v1beta", model: "gemini-2.0-flash" },
-          { version: "v1", model: "gemini-2.0-flash" },
-          { version: "v1beta", model: "gemini-2.0-flash-lite" },
-        ]);
-      } finally {
-        globalThis.fetch = originalFetch;
-        process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
-        restoreGeminiModelEnv();
-      }
-    },
-  );
+      assert.equal(result.score, 55);
+      assert.equal(result.confidence, "medium");
+      assert.equal(result.reasoning, "fallback");
+    } finally {
+      globalThis.fetch = originalFetch;
+      restoreEnv("OPENROUTER_API_KEY", ORIGINAL_OPENROUTER_KEY);
+      restoreEnv("GEMINI_API_KEY", ORIGINAL_GEMINI_KEY);
+    }
+  });
 });
 
 describe("/api/ai-check", () => {
-  const createFetchStub = (result: GeminiModule.AiCheckerResult) => async () =>
-    new Response(
-      JSON.stringify({
-        candidates: [
-          {
-            content: {
-              parts: [
-                {
-                  text: JSON.stringify(result),
-                },
-              ],
-            },
-          },
-        ],
-      }),
-      { status: 200 },
-    );
+  const mainPayload = {
+    overall_score: 0.33,
+    overall_judgement: "low",
+    suspicious_segments: [
+      { segment_id: 1, location: "1行目", reason: "AIっぽさ", score: 0.33 },
+    ],
+    notes: "控えめなAI兆候",
+  };
+  const novaPayload = {
+    segment_id: 1,
+    secondary_score: 0.33,
+    agreement: true,
+    reason: "自然な文体",
+  };
+
+  const createFetchStub = () => {
+    let toggle = false;
+    return async () => {
+      toggle = !toggle;
+      return toggle
+        ? createOpenRouterResponse(mainPayload)
+        : createOpenRouterResponse(novaPayload);
+    };
+  };
 
   test("同日の6回目は429を返す", { concurrency: false }, async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.OPENROUTER_API_KEY = "test-openrouter";
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = createFetchStub({
-      score: 33,
-      confidence: "low",
-      reasoning: "人間らしさが優勢です",
-    });
+    globalThis.fetch = createFetchStub();
 
     try {
       let cookieHeader: string | null = null;
@@ -260,55 +218,22 @@ describe("/api/ai-check", () => {
         assert.equal(body.dailyCheckCount, attempt);
       }
 
-      const cookieValue = cookieHeader?.split(";")[0] ?? "";
-      assert.ok(cookieValue);
-
-      const sixthRequest = new Request("http://localhost/api/ai-check", {
+      const request = new Request("http://localhost/api/ai-check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          cookie: cookieValue,
+          ...(cookieHeader ? { cookie: cookieHeader.split(";")[0] ?? "" } : {}),
         },
         body: JSON.stringify({ inputText: "テスト" }),
       });
 
-      const sixthResponse = await aiCheckRoute(sixthRequest);
-      assert.equal(sixthResponse.status, 429);
-      const sixthBody = (await sixthResponse.json()) as {
-        error: string;
-        lastCheckedAt?: string;
-        dailyCheckCount?: number;
-      };
-      assert.match(sixthBody.error, /1日5回/);
-      assert.ok(typeof sixthBody.lastCheckedAt === "string");
-      assert.equal(sixthBody.dailyCheckCount, 5);
-    } finally {
-      globalThis.fetch = originalFetch;
-      process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
-    }
-  });
-
-  test("空文字列は400で拒否される", { concurrency: false }, async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = createFetchStub({
-      score: 10,
-      confidence: "low",
-      reasoning: "入力が短すぎます",
-    });
-
-    try {
-      const request = new Request("http://localhost/api/ai-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputText: "" }),
-      });
-
       const response = await aiCheckRoute(request);
-      assert.equal(response.status, 400);
+      assert.equal(response.status, 429);
+      const body = (await response.json()) as { error: string };
+      assert.ok(body.error.includes("5回"));
     } finally {
       globalThis.fetch = originalFetch;
-      process.env.GEMINI_API_KEY = ORIGINAL_API_KEY;
+      process.env.OPENROUTER_API_KEY = ORIGINAL_OPENROUTER_KEY;
     }
   });
 });

@@ -74,7 +74,7 @@ function normalizeConfidenceLevel(
   return "low";
 }
 
-function sanitizeScore(value: unknown): number {
+function sanitizeScore(value: unknown, developerCode?: string): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -88,15 +88,20 @@ function sanitizeScore(value: unknown): number {
 
   throw new GeminiError("AIチェッカーのスコアを取得できませんでした。", {
     status: 502,
+    developerCode,
   });
 }
 
-export function parseAiCheckerResponse(raw: string): AiCheckerResult {
+export function parseAiCheckerResponse(
+  raw: string,
+  developerCode?: GeminiError["developerCode"],
+): AiCheckerResult {
   const snippet = extractJsonSnippet(raw);
 
   if (!snippet) {
     throw new GeminiError("AIチェッカーの解析結果を読み取れませんでした。", {
       status: 502,
+      developerCode,
     });
   }
 
@@ -109,6 +114,7 @@ export function parseAiCheckerResponse(raw: string): AiCheckerResult {
       {
         status: 502,
         cause: error,
+        developerCode,
       },
     );
   }
@@ -126,6 +132,7 @@ export function parseAiCheckerResponse(raw: string): AiCheckerResult {
                   parsed?.aiScore ??
                   parsed?.likelihood ??
                   parsed?.probability,
+                developerCode,
               ),
             ),
           ),

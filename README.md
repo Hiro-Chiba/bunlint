@@ -21,3 +21,19 @@ npm run dev
 ```bash
 GEMINI_API_KEY=your_api_key_here
 ```
+
+AI 判定機能で OpenRouter を利用する場合は、以下の環境変数も追加してください。モデル名はコードで固定されており、一次判定に
+`google/gemini-2.0-flash-exp:free`、再検証に `amazon/nova-2-lite-v1:free` を使用します。OpenRouter のダッシュボード側で
+これらのモデルが利用可能か、クォータや許可設定を確認してください。
+
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key
+```
+
+コード上の動作は次の通りです。
+
+- `OPENROUTER_API_KEY` が設定されていれば、AI 判定は OpenRouter 経由で上記 2 モデルを固定で呼び出します。
+- OpenRouter 呼び出しで失敗し、かつ `GEMINI_API_KEY` も設定されている場合は Gemini API に自動でフォールバックします。
+- どちらのキーも未設定の場合は AI 判定を実行せずエラーになります。
+
+そのため、OpenRouter で 2 つのモデルが利用可能な状態で `OPENROUTER_API_KEY` をセットしていれば、追加のコード変更なく AI 判定機能を利用できます。

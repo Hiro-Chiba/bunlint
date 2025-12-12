@@ -6,6 +6,7 @@ import {
   transformTextWithGemini,
   normalizeWritingStyle,
   writingStylePresets,
+  toUserFacingGeminiErrorMessage,
 } from "@/lib/gemini/index";
 import type { PunctuationMode } from "@/lib/punctuation";
 import { HIGH_ACCURACY_COOKIE_NAME } from "@/lib/high-accuracy";
@@ -130,8 +131,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof GeminiError) {
+      const detail = toUserFacingGeminiErrorMessage(error);
       return NextResponse.json<TransformErrorPayload>(
-        createUserFacingErrorPayload("TRANSFORM_PROVIDER_ERROR"),
+        createUserFacingErrorPayload("TRANSFORM_PROVIDER_ERROR", detail),
         { status: error.status },
       );
     }

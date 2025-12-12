@@ -184,6 +184,36 @@ describe("/api/ai-check", () => {
     };
   };
 
+  test("OpenRouterの権限エラーを詳細付きで返す", { concurrency: false }, async () => {
+    process.env.OPENROUTER_API_KEY = "test-openrouter";
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({ error: { message: "access denied to model" } }),
+        { status: 403 },
+      );
+
+    try {
+      const request = new Request("http://localhost/api/ai-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputText: "テスト" }),
+      });
+
+      const response = await aiCheckRoute(request);
+      assert.equal(response.status, 403);
+      const body = (await response.json()) as { error: string };
+      assert.ok(body.error.includes("OpenRouter"));
+      assert.ok(body.error.includes("無料枠"));
+    } finally {
+      globalThis.fetch = originalFetch;
+      restoreEnv("OPENROUTER_API_KEY", ORIGINAL_OPENROUTER_KEY);
+    }
+  });
+
   test("同日の6回目は429を返す", { concurrency: false }, async () => {
     process.env.OPENROUTER_API_KEY = "test-openrouter";
     const originalFetch = globalThis.fetch;

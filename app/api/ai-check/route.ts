@@ -4,6 +4,7 @@ import {
   GeminiError,
   analyzeAiLikelihoodWithGemini,
   type AiCheckerResult,
+  toUserFacingGeminiErrorMessage,
 } from "@/lib/gemini/index";
 import {
   createUserFacingErrorPayload,
@@ -207,8 +208,9 @@ export async function POST(request: Request) {
     result = await analyzeAiLikelihoodWithGemini({ text: trimmedText });
   } catch (error) {
     if (error instanceof GeminiError) {
+      const detail = toUserFacingGeminiErrorMessage(error);
       return NextResponse.json<AiCheckErrorPayload>(
-        createUserFacingErrorPayload("AI_CHECK_PROVIDER_ERROR"),
+        createUserFacingErrorPayload("AI_CHECK_PROVIDER_ERROR", detail),
         { status: error.status },
       );
     }

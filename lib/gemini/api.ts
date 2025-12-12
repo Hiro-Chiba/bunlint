@@ -499,6 +499,7 @@ export async function transformTextWithGemini({
   if (validationReason) {
     const errorOptions: {
       status: number;
+      developerCode: GeminiError["developerCode"];
       cause?: { offendingSentences: string[] };
     } = {
       status: 502,

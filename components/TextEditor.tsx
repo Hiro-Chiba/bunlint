@@ -44,6 +44,56 @@ const HIGH_ACCURACY_STORAGE_KEY = "bunlint:high-accuracy";
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const readLocalStorage = (key: string, errorMessage: string): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    console.error(errorMessage, error);
+    return null;
+  }
+};
+
+const writeLocalStorage = (
+  key: string,
+  value: string,
+  errorMessage: string,
+): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    console.error(errorMessage, error);
+  }
+};
+
+const removeLocalStorage = (key: string, errorMessage: string): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch (error) {
+    console.error(errorMessage, error);
+  }
+};
+
+const parseJson = <T,>(value: string, errorMessage: string): T | null => {
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    console.error(errorMessage, error);
+    return null;
+  }
+};
+
 const generateIdentifier = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -307,32 +357,40 @@ export function TextEditor() {
       return;
     }
 
-    try {
-      const stored = window.localStorage.getItem(HIGH_ACCURACY_STORAGE_KEY);
+    const stored = readLocalStorage(
+      HIGH_ACCURACY_STORAGE_KEY,
+      "高精度モードの状態読み込みに失敗しました",
+    );
 
-      if (!stored) {
+    if (!stored) {
+      return;
+    }
+
+    const parsed = parseJson<Partial<StoredHighAccuracyState>>(
+      stored,
+      "高精度モードの状態読み込みに失敗しました",
+    );
+
+    if (parsed && typeof parsed.expiresAt === "string") {
+      const expiresAt = new Date(parsed.expiresAt);
+
+      if (!Number.isFinite(expiresAt.getTime())) {
+        removeLocalStorage(
+          HIGH_ACCURACY_STORAGE_KEY,
+          "高精度モードの状態削除に失敗しました",
+        );
         return;
       }
 
-      const parsed = JSON.parse(stored) as Partial<StoredHighAccuracyState>;
-
-      if (parsed && typeof parsed.expiresAt === "string") {
-        const expiresAt = new Date(parsed.expiresAt);
-
-        if (!Number.isFinite(expiresAt.getTime())) {
-          window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
-          return;
-        }
-
-        if (expiresAt.getTime() > Date.now()) {
-          setHighAccuracyExpiresAt(parsed.expiresAt);
-          setHighAccuracyNow(Date.now());
-        } else {
-          window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
-        }
+      if (expiresAt.getTime() > Date.now()) {
+        setHighAccuracyExpiresAt(parsed.expiresAt);
+        setHighAccuracyNow(Date.now());
+      } else {
+        removeLocalStorage(
+          HIGH_ACCURACY_STORAGE_KEY,
+          "高精度モードの状態削除に失敗しました",
+        );
       }
-    } catch (error) {
-      console.error("高精度モードの状態読み込みに失敗しました", error);
     }
   }, []);
 
@@ -346,25 +404,21 @@ export function TextEditor() {
     }
 
     if (typeof highAccuracyExpiresAt === "string" && highAccuracyExpiresAt) {
-      try {
-        const payload: StoredHighAccuracyState = {
-          expiresAt: highAccuracyExpiresAt,
-        };
-        window.localStorage.setItem(
-          HIGH_ACCURACY_STORAGE_KEY,
-          JSON.stringify(payload),
-        );
-      } catch (error) {
-        console.error("高精度モードの状態保存に失敗しました", error);
-      }
+      const payload: StoredHighAccuracyState = {
+        expiresAt: highAccuracyExpiresAt,
+      };
+      writeLocalStorage(
+        HIGH_ACCURACY_STORAGE_KEY,
+        JSON.stringify(payload),
+        "高精度モードの状態保存に失敗しました",
+      );
       return;
     }
 
-    try {
-      window.localStorage.removeItem(HIGH_ACCURACY_STORAGE_KEY);
-    } catch (error) {
-      console.error("高精度モードの状態削除に失敗しました", error);
-    }
+    removeLocalStorage(
+      HIGH_ACCURACY_STORAGE_KEY,
+      "高精度モードの状態削除に失敗しました",
+    );
   }, [highAccuracyExpiresAt]);
 
   useEffect(() => {
@@ -433,23 +487,22 @@ export function TextEditor() {
 
     let resolvedId: string | null = null;
 
-    try {
-      const storedId = window.localStorage.getItem(USER_ID_STORAGE_KEY);
-      if (isNonEmptyString(storedId)) {
-        resolvedId = storedId;
-      }
-    } catch (error) {
-      console.error("ユーザー識別子の読み込みに失敗しました", error);
+    const storedId = readLocalStorage(
+      USER_ID_STORAGE_KEY,
+      "ユーザー識別子の読み込みに失敗しました",
+    );
+    if (isNonEmptyString(storedId)) {
+      resolvedId = storedId;
     }
 
     if (!resolvedId) {
       resolvedId = generateIdentifier();
 
-      try {
-        window.localStorage.setItem(USER_ID_STORAGE_KEY, resolvedId);
-      } catch (error) {
-        console.error("ユーザー識別子の保存に失敗しました", error);
-      }
+      writeLocalStorage(
+        USER_ID_STORAGE_KEY,
+        resolvedId,
+        "ユーザー識別子の保存に失敗しました",
+      );
     }
 
     setUserId(resolvedId);
@@ -475,58 +528,65 @@ export function TextEditor() {
 
     const storageKey = createHistoryStorageKey(userId);
 
-    try {
-      let stored = window.localStorage.getItem(storageKey);
+    let stored = readLocalStorage(
+      storageKey,
+      "履歴の読み込みに失敗しました",
+    );
 
-      if (!stored) {
-        const legacyStored = window.localStorage.getItem(
-          LEGACY_HISTORY_STORAGE_KEY,
+    if (!stored) {
+      const legacyStored = readLocalStorage(
+        LEGACY_HISTORY_STORAGE_KEY,
+        "履歴の読み込みに失敗しました",
+      );
+      if (legacyStored) {
+        stored = legacyStored;
+        writeLocalStorage(
+          storageKey,
+          legacyStored,
+          "履歴のユーザー別領域への移行に失敗しました",
         );
-        if (legacyStored) {
-          stored = legacyStored;
-          try {
-            window.localStorage.setItem(storageKey, legacyStored);
-            window.localStorage.removeItem(LEGACY_HISTORY_STORAGE_KEY);
-          } catch (error) {
-            console.error("履歴のユーザー別領域への移行に失敗しました", error);
-          }
-        }
+        removeLocalStorage(
+          LEGACY_HISTORY_STORAGE_KEY,
+          "履歴のユーザー別領域への移行に失敗しました",
+        );
       }
-
-      if (!stored) {
-        setHistoryEntries([]);
-        setActiveHistoryEntryId(null);
-        return;
-      }
-
-      const parsed: unknown = JSON.parse(stored);
-      if (!Array.isArray(parsed)) {
-        window.localStorage.removeItem(storageKey);
-        setHistoryEntries([]);
-        setActiveHistoryEntryId(null);
-        return;
-      }
-
-      const normalized = parsed
-        .map((entry) => normalizeHistoryEntry(entry))
-        .filter((entry): entry is HistoryEntry => entry !== null)
-        .slice(0, MAX_HISTORY_ITEMS);
-
-      const pruned = pruneExpiredHistoryEntries(normalized);
-
-      if (pruned.length > 0) {
-        setHistoryEntries(pruned);
-      } else {
-        window.localStorage.removeItem(storageKey);
-        setHistoryEntries([]);
-        setActiveHistoryEntryId(null);
-      }
-    } catch (error) {
-      console.error("履歴の読み込みに失敗しました", error);
-      setActiveHistoryEntryId(null);
-    } finally {
-      setHasLoadedHistory(true);
     }
+
+    if (!stored) {
+      setHistoryEntries([]);
+      setActiveHistoryEntryId(null);
+      setHasLoadedHistory(true);
+      return;
+    }
+
+    const parsed = parseJson<unknown[]>(
+      stored,
+      "履歴の読み込みに失敗しました",
+    );
+    if (!parsed || !Array.isArray(parsed)) {
+      removeLocalStorage(storageKey, "履歴の削除に失敗しました");
+      setHistoryEntries([]);
+      setActiveHistoryEntryId(null);
+      setHasLoadedHistory(true);
+      return;
+    }
+
+    const normalized = parsed
+      .map((entry) => normalizeHistoryEntry(entry))
+      .filter((entry): entry is HistoryEntry => entry !== null)
+      .slice(0, MAX_HISTORY_ITEMS);
+
+    const pruned = pruneExpiredHistoryEntries(normalized);
+
+    if (pruned.length > 0) {
+      setHistoryEntries(pruned);
+    } else {
+      removeLocalStorage(storageKey, "履歴の削除に失敗しました");
+      setHistoryEntries([]);
+      setActiveHistoryEntryId(null);
+    }
+
+    setHasLoadedHistory(true);
   }, [isUserInitialized, userId]);
 
   useEffect(() => {
@@ -538,14 +598,11 @@ export function TextEditor() {
       return;
     }
 
-    try {
-      window.localStorage.setItem(
-        createHistoryStorageKey(userId),
-        JSON.stringify(historyEntries),
-      );
-    } catch (error) {
-      console.error("履歴の保存に失敗しました", error);
-    }
+    writeLocalStorage(
+      createHistoryStorageKey(userId),
+      JSON.stringify(historyEntries),
+      "履歴の保存に失敗しました",
+    );
   }, [historyEntries, hasLoadedHistory, userId]);
 
   useEffect(() => {
@@ -564,82 +621,82 @@ export function TextEditor() {
       return;
     }
 
-    try {
-      const stored = window.localStorage.getItem(
-        createAiCheckStorageKey(userId),
-      );
+    const stored = readLocalStorage(
+      createAiCheckStorageKey(userId),
+      "AIチェッカーの履歴読み込みに失敗しました",
+    );
 
-      if (!stored) {
-        setLastAiCheckAt(null);
-        if (aiChecksToday !== 0) {
-          setAiChecksToday(0);
-        }
-        return;
-      }
-
-      const parsed: unknown = JSON.parse(stored);
-      if (!parsed || typeof parsed !== "object") {
-        setLastAiCheckAt(null);
-        if (aiChecksToday !== 0) {
-          setAiChecksToday(0);
-        }
-        return;
-      }
-
-      const snapshot = parsed as Partial<StoredAiCheckSnapshot>;
-
-      const resolvedLastCheckedAt =
-        (typeof snapshot.checkedAt === "string" && snapshot.checkedAt) ||
-        (typeof snapshot.lastCheckedAt === "string"
-          ? snapshot.lastCheckedAt
-          : null);
-
-      if (resolvedLastCheckedAt) {
-        setLastAiCheckAt(resolvedLastCheckedAt);
-      } else {
-        setLastAiCheckAt(null);
-      }
-
-      let restoredCount = false;
-
-      if (
-        typeof snapshot.dailyCount === "number" &&
-        Number.isFinite(snapshot.dailyCount) &&
-        resolvedLastCheckedAt &&
-        isSameJstDate(resolvedLastCheckedAt, new Date())
-      ) {
-        const normalizedCount = Math.min(
-          DAILY_AI_CHECK_LIMIT,
-          Math.max(0, Math.floor(snapshot.dailyCount)),
-        );
-        setAiChecksToday(normalizedCount);
-        restoredCount = true;
-      }
-
-      if (!restoredCount && aiChecksToday !== 0) {
+    if (!stored) {
+      setLastAiCheckAt(null);
+      if (aiChecksToday !== 0) {
         setAiChecksToday(0);
       }
+      return;
+    }
 
-      if (
-        typeof snapshot.score === "number" &&
-        isAiConfidenceLevel(snapshot.confidence) &&
-        resolvedLastCheckedAt &&
-        typeof snapshot.textSnapshot === "string" &&
-        snapshot.textSnapshot === text
-      ) {
-        setAiCheckResult({
-          score: snapshot.score,
-          confidence: snapshot.confidence,
-          reasoning:
-            typeof snapshot.reasoning === "string" && snapshot.reasoning
-              ? snapshot.reasoning
-              : DEFAULT_AI_REASONING[snapshot.confidence],
-          checkedAt: resolvedLastCheckedAt,
-          textSnapshot: snapshot.textSnapshot,
-        });
+    const parsed = parseJson<Partial<StoredAiCheckSnapshot>>(
+      stored,
+      "AIチェッカーの履歴読み込みに失敗しました",
+    );
+    if (!parsed || typeof parsed !== "object") {
+      setLastAiCheckAt(null);
+      if (aiChecksToday !== 0) {
+        setAiChecksToday(0);
       }
-    } catch (error) {
-      console.error("AIチェッカーの履歴読み込みに失敗しました", error);
+      return;
+    }
+
+    const snapshot = parsed as Partial<StoredAiCheckSnapshot>;
+
+    const resolvedLastCheckedAt =
+      (typeof snapshot.checkedAt === "string" && snapshot.checkedAt) ||
+      (typeof snapshot.lastCheckedAt === "string"
+        ? snapshot.lastCheckedAt
+        : null);
+
+    if (resolvedLastCheckedAt) {
+      setLastAiCheckAt(resolvedLastCheckedAt);
+    } else {
+      setLastAiCheckAt(null);
+    }
+
+    let restoredCount = false;
+
+    if (
+      typeof snapshot.dailyCount === "number" &&
+      Number.isFinite(snapshot.dailyCount) &&
+      resolvedLastCheckedAt &&
+      isSameJstDate(resolvedLastCheckedAt, new Date())
+    ) {
+      const normalizedCount = Math.min(
+        DAILY_AI_CHECK_LIMIT,
+        Math.max(0, Math.floor(snapshot.dailyCount)),
+      );
+      setAiChecksToday(normalizedCount);
+      restoredCount = true;
+    }
+
+    if (!restoredCount && aiChecksToday !== 0) {
+      setAiChecksToday(0);
+    }
+
+    if (
+      typeof snapshot.score === "number" &&
+      isAiConfidenceLevel(snapshot.confidence) &&
+      resolvedLastCheckedAt &&
+      typeof snapshot.textSnapshot === "string" &&
+      snapshot.textSnapshot === text
+    ) {
+      setAiCheckResult({
+        score: snapshot.score,
+        confidence: snapshot.confidence,
+        reasoning:
+          typeof snapshot.reasoning === "string" && snapshot.reasoning
+            ? snapshot.reasoning
+            : DEFAULT_AI_REASONING[snapshot.confidence],
+        checkedAt: resolvedLastCheckedAt,
+        textSnapshot: snapshot.textSnapshot,
+      });
     }
   }, [aiCheckResult, aiChecksToday, isUserInitialized, text, userId]);
 
@@ -993,15 +1050,17 @@ export function TextEditor() {
             const storageKey = createAiCheckStorageKey(userId);
             let existing: Partial<StoredAiCheckSnapshot> = {};
 
-            const stored = window.localStorage.getItem(storageKey);
+            const stored = readLocalStorage(
+              storageKey,
+              "AIチェッカー結果の保存に失敗しました",
+            );
             if (stored) {
-              try {
-                const parsed: unknown = JSON.parse(stored);
-                if (parsed && typeof parsed === "object") {
-                  existing = parsed as Partial<StoredAiCheckSnapshot>;
-                }
-              } catch {
-                existing = {};
+              const parsed = parseJson<Partial<StoredAiCheckSnapshot>>(
+                stored,
+                "AIチェッカー結果の保存に失敗しました",
+              );
+              if (parsed && typeof parsed === "object") {
+                existing = parsed;
               }
             }
 
@@ -1021,9 +1080,10 @@ export function TextEditor() {
               nextSnapshot.dailyCount = normalizedCount;
             }
 
-            window.localStorage.setItem(
+            writeLocalStorage(
               storageKey,
               JSON.stringify(nextSnapshot),
+              "AIチェッカー結果の保存に失敗しました",
             );
           } catch (storageError) {
             console.error("AIチェッカー結果の保存に失敗しました", storageError);
@@ -1086,9 +1146,10 @@ export function TextEditor() {
         };
 
         try {
-          window.localStorage.setItem(
+          writeLocalStorage(
             createAiCheckStorageKey(userId),
             JSON.stringify(snapshot),
+            "AIチェッカー結果の保存に失敗しました",
           );
         } catch (error) {
           console.error("AIチェッカー結果の保存に失敗しました", error);

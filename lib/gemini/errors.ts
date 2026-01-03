@@ -24,7 +24,7 @@ export function toUserFacingGeminiErrorMessage(error: GeminiError): string {
     /free[_\s-]?tier/.test(normalizedMessage) ||
     /limit:\s*0/.test(normalizedMessage)
   ) {
-    return `AI変換の提供元で利用上限に達しています。時間をおいて再度お試しください。${developerCode}`;
+    return `AI変換の提供元で利用上限に達しています。時間をおいて、もう一度お試しください。${developerCode}`;
   }
 
   if (/GEMINI_API_KEY/.test(error.message)) {

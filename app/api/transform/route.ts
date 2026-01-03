@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       outputText: result.outputText,
       writingStyle: normalizedWritingStyle,
       punctuationMode: body.punctuationMode,
-      message: `${preset.label}のトーンに整形しました。`,
+      message: `${preset.label}の文体に整えました。`,
     });
   } catch (error) {
     if (error instanceof GeminiError) {

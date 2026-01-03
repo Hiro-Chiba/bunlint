@@ -271,7 +271,7 @@ const isAiCheckSuccessPayload = (
 
 export function TextEditor() {
   const [text, setText] = useState(
-    "これはサンプルテキストです。自由に編集して機能をお試しください。",
+    "これはサンプルテキストです。自由に編集して機能を試してください。",
   );
   const [punctuationMode, setPunctuationMode] = useState<PunctuationMode>(() =>
     detectPunctuationMode(text),
@@ -866,7 +866,7 @@ export function TextEditor() {
     } catch (error) {
       console.error("高精度モードの有効化に失敗しました", error);
       setHighAccuracyError(
-        "高精度モードの有効化に失敗しました。通信環境をご確認のうえ再度お試しください。",
+        "高精度モードの有効化に失敗しました。通信環境をご確認のうえ、もう一度お試しください。",
       );
     } finally {
       setIsActivatingHighAccuracy(false);
@@ -915,7 +915,7 @@ export function TextEditor() {
         const errorMessage =
           payload && "error" in payload && payload.error
             ? payload.error
-            : "語尾変換に失敗しました。時間をおいて再度お試しください。";
+            : "語尾変換に失敗しました。時間をおいて、もう一度お試しください。";
         setStatusMessage(errorMessage);
         return;
       }
@@ -996,7 +996,7 @@ export function TextEditor() {
         timeZone: "Asia/Tokyo",
       });
       setAiCheckMessage(
-        `AIチェッカーは日本時間で1日5回までです。次回は${nextLabel}以降にお試しください。`,
+        `AIチェッカーは日本時間で1日5回まで利用できます。次回は${nextLabel}以降にご利用ください。`,
       );
       return;
     }
@@ -1025,7 +1025,7 @@ export function TextEditor() {
         const errorMessage =
           errorPayload && typeof errorPayload.error === "string"
             ? errorPayload.error
-            : "AIチェッカーの実行に失敗しました。時間をおいて再度お試しください。";
+            : "AIチェッカーの実行に失敗しました。時間をおいて、もう一度お試しください。";
 
         let normalizedCount: number | null = null;
 
@@ -1207,7 +1207,7 @@ export function TextEditor() {
     } catch (error) {
       console.error("AI checker request failed", error);
       setAiCheckMessage(
-        "AIチェッカーの呼び出しに失敗しました。通信環境をご確認のうえ、再度お試しください。",
+        "AIチェッカーの呼び出しに失敗しました。通信環境をご確認のうえ、もう一度お試しください。",
       );
     } finally {
       setIsCheckingAi(false);

@@ -227,7 +227,7 @@ export function TransformationControls({
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <h3 className="font-bold text-slate-800">語尾・トーン</h3>
+          <h3 className="font-bold text-slate-800">語尾・文体</h3>
         </header>
 
         <div className="space-y-4">
@@ -316,7 +316,7 @@ export function TransformationControls({
           </header>
 
           <p className="mb-6 text-xs leading-relaxed text-slate-400">
-            AIエンジンを最大能力で稼働させます。10分間限定のプロフェッショナル機能です。
+            AIを高精度で動作させます。10分間だけ利用できるプロ向け機能です。
           </p>
 
           {isHighAccuracyActive ? (

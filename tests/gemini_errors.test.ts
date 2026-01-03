@@ -14,7 +14,7 @@ describe("toUserFacingGeminiErrorMessage", () => {
 
     assert.equal(
       message,
-      "AI変換の提供元で利用上限に達しています。時間をおいて再度お試しください。",
+      "AI変換の提供元で利用上限に達しています。時間をおいて、もう一度お試しください。",
     );
   });
 
@@ -50,7 +50,7 @@ describe("toUserFacingGeminiErrorMessage", () => {
 
     assert.equal(
       message,
-      "AI変換の提供元で利用上限に達しています。時間をおいて再度お試しください。 (DEV:GEMINI_API)",
+      "AI変換の提供元で利用上限に達しています。時間をおいて、もう一度お試しください。 (DEV:GEMINI_API)",
     );
   });
 });

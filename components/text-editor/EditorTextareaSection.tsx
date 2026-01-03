@@ -77,7 +77,7 @@ export function EditorTextareaSection({
           </div>
         </div>
         <p id={editorDescriptionId} className="text-sm text-slate-500">
-          テキストを入力して、句読点変換やAIチェックなどの機能をお試しください。
+          テキストを入力して、句読点変換やAIチェックなどを試してください。
         </p>
       </header>
       <div className="relative">

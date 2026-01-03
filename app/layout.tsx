@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 const siteTitle = "Bun Checker | 日本語テキスト整形スタジオ";
 const siteDescription =
-  "句読点をそろえ、AI で語尾を整えられる日本語向けエディタです。ブラウザーで手早く文章をきれいにできます。";
+  "句読点を整え、AIで語尾を調整できる日本語向けエディタです。ブラウザーだけで手軽に文章を整えられます。";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bunlint.example.com"),

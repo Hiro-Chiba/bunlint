@@ -16,7 +16,9 @@ npm install
 npm run dev
 ```
 
-`.env.local` に API キーを設定すると AI 機能が使えます。
+### 環境変数
+
+AI 機能を使うには `.env.local` に Gemini API キーを設定します。
 
 ```bash
 GEMINI_API_KEY=your_api_key_here
@@ -29,8 +31,8 @@ AI 判定を OpenRouter で動かす場合は、以下も追加してくださ�
 OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
-### AI 判定の優先順位
+### AI 判定の動き
 
-1. `OPENROUTER_API_KEY` があれば OpenRouter（上記 2 モデルを固定で使用）
-2. OpenRouter 失敗時に `GEMINI_API_KEY` があれば Gemini にフォールバック
-3. どちらも未設定ならエラー
+- `OPENROUTER_API_KEY` があれば OpenRouter を使用
+- OpenRouter 失敗時、`GEMINI_API_KEY` があれば Gemini に自動フォールバック
+- どちらも未設定なら AI 判定は実行不可

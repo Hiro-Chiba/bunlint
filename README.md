@@ -1,13 +1,13 @@
 # Bun Checker
 
-日本語テキストの整形・推敲をサポートする Next.js + Tailwind CSS アプリです。
+Next.js 16 と Tailwind CSS で作られた、日本語テキストの整形・推敲支援ツールです。
 
 ## できること
 
-- 句読点の一括変換（「、。」「，．」「, .」）
-- 文字数・行数・原稿用紙換算のカウント
-- AI で文体を統一（です・ます / だ・である）や自然な表現に調整
-- AI テキスト判定
+- 句読点の統一（「、。」「，．」「, .」の変換）
+- 文字数・行数・原稿用紙換算のリアルタイム表示
+- AI による語尾の統一（です・ます / だ・である）と自然な表現への調整
+- AI 生成テキストの判定
 
 ## セットアップ
 
@@ -24,10 +24,8 @@ AI 機能を使うには `.env.local` に Gemini API キーを設定します。
 GEMINI_API_KEY=your_api_key_here
 ```
 
-AI 判定を OpenRouter で行う場合は、次も設定してください。使用モデルは固定です。
-
-- 一次判定: `google/gemini-2.0-flash-exp:free`
-- 再検証: `amazon/nova-2-lite-v1:free`
+AI 判定を OpenRouter で動かす場合は、以下も追加してください。
+一次判定は `google/gemini-2.0-flash-exp:free`、再検証は `amazon/nova-2-lite-v1:free` を使います。
 
 ```bash
 OPENROUTER_API_KEY=your_openrouter_api_key
